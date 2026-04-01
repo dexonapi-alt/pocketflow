@@ -1,0 +1,32 @@
+# dependencies
+node_modules/
+
+# build
+dist/
+.next/
+out/
+
+# turbo
+.turbo/
+
+# env
+.env
+.env.local
+.env.*.local
+
+# ide
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# os
+.DS_Store
+Thumbs.db
+
+# prisma
+apps/api/prisma/migrations/
+
+# misc
+*.log
+coverage/
