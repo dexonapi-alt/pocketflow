@@ -30,3 +30,4 @@ apps/api/prisma/migrations/
 # misc
 *.log
 coverage/
+.claude/
