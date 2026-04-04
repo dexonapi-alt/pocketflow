@@ -112,7 +112,7 @@ export class AiService {
 
   async generateInsights(userId: string) {
     const summary = await this.buildFinanceSummary(userId);
-    const prompt = `Based on this financial data, generate 2-3 actionable insights as JSON array with fields: insightType (WEEKLY_SUMMARY|SPENDING_ALERT|SAVINGS_TIP|FORECAST), title, body, severity (INFO|WARNING|SUCCESS).\n\n${JSON.stringify(summary)}`;
+    const prompt = `Based on this financial data, generate 2-3 actionable insights as JSON array with fields: insightType (WEEKLY_SUMMARY|SPENDING_ALERT|SAVINGS_TIP|FORECAST), title, body, severity (INFO|WARNING|SUCCESS). Remember: "monthlyIncome" is the user's confirmed recurring salary.\n\n${JSON.stringify(summary)}`;
 
     const raw = await this.callOpenRouter(summary, [
       { role: "user", content: prompt },
@@ -150,12 +150,13 @@ export class AiService {
     const summary = await this.buildFinanceSummary(userId);
 
     if (!this.hasApiKey) {
-      // Generate a basic tip from data
-      if (summary.salary && summary.totalExpenses > 0) {
-        const savingsRate = Math.round(((summary.salary - summary.totalExpenses) / summary.salary) * 100);
+      const income = summary.monthlyIncome ?? 0;
+      if (income > 0 && summary.totalRecordedExpenses > 0) {
+        const allExpenses = summary.totalRecordedExpenses + (summary.monthlyFixedExpenses ?? 0);
+        const savingsRate = Math.round(((income - allExpenses) / income) * 100);
         return { tip: `You're saving about ${savingsRate}% of your salary. ${savingsRate > 20 ? "Great pace — keep it up!" : "Try to cut small daily expenses to push past 20%."}` };
       }
-      return { tip: summary.totalIncome > 0 ? "Track your expenses to get personalized savings tips." : "" };
+      return { tip: income > 0 ? "Track your expenses to get personalized savings tips." : "" };
     }
 
     const prompt = `You are a concise personal finance coach. Based on this user's financial snapshot, give ONE short actionable tip in 1-2 sentences. Be specific with numbers. No greetings, no fluff.
@@ -174,61 +175,90 @@ Financial data: ${JSON.stringify(summary)}`;
   async getSavingsForecast(userId: string) {
     const summary = await this.buildFinanceSummary(userId);
 
-    const prompt = `You are a financial forecasting engine. Based on this user's financial data, project their possible savings for 1 month, 3 months, 6 months, and 1 year.
+    // Realistic values are always computed deterministically — no AI guessing
+    const monthlyIncome = summary.monthlyIncome ?? 0;
+    const fixedCosts = summary.monthlyFixedExpenses ?? 0;
+    const recordedExpenses = summary.totalRecordedExpenses ?? 0;
+    const realisticRate = Math.max(0, monthlyIncome - fixedCosts - recordedExpenses);
 
-Return ONLY a valid JSON object with this exact structure (no markdown, no explanation):
+    const realisticProjections = [
+      { period: "1 month", realistic: Math.round(realisticRate) },
+      { period: "3 months", realistic: Math.round(realisticRate * 3) },
+      { period: "6 months", realistic: Math.round(realisticRate * 6) },
+      { period: "1 year", realistic: Math.round(realisticRate * 12) },
+    ];
+
+    // Ask AI only for optimistic/conservative adjustments and insight
+    let aiAdjustments: { projections?: any[]; insight?: string } = {};
+
+    if (this.hasApiKey && monthlyIncome > 0) {
+      const prompt = `You are a financial forecasting engine. The user's REALISTIC monthly savings is already calculated: ₱${Math.round(realisticRate).toLocaleString()}/month (income ₱${Math.round(monthlyIncome).toLocaleString()} minus fixed expenses ₱${Math.round(fixedCosts).toLocaleString()} minus recorded spending ₱${Math.round(recordedExpenses).toLocaleString()}).
+
+DO NOT recalculate realistic — it is exact. Your job is ONLY to provide optimistic and conservative estimates, plus a one-sentence insight.
+
+Return ONLY a valid JSON object (no markdown, no explanation):
 {
-  "monthlyRate": <number - estimated monthly savings rate>,
   "projections": [
-    { "period": "1 month", "optimistic": <number>, "realistic": <number>, "conservative": <number> },
-    { "period": "3 months", "optimistic": <number>, "realistic": <number>, "conservative": <number> },
-    { "period": "6 months", "optimistic": <number>, "realistic": <number>, "conservative": <number> },
-    { "period": "1 year", "optimistic": <number>, "realistic": <number>, "conservative": <number> }
+    { "period": "1 month", "optimistic": <number>, "conservative": <number> },
+    { "period": "3 months", "optimistic": <number>, "conservative": <number> },
+    { "period": "6 months", "optimistic": <number>, "conservative": <number> },
+    { "period": "1 year", "optimistic": <number>, "conservative": <number> }
   ],
   "insight": "<one sentence about their savings trajectory>"
 }
 
-Optimistic = if they cut spending by 20%. Realistic = current pace. Conservative = if spending increases 15%.
+Guidelines:
+- Optimistic: user cuts variable spending, finds ways to save more. Should be higher than realistic.
+- Conservative: unexpected costs, lifestyle inflation, irregular expenses. Should be lower than realistic.
+- Be grounded in the actual numbers. Don't hallucinate.
 
 User's financial data: ${JSON.stringify(summary)}`;
 
-    const raw = await this.callOpenRouter(summary, [
-      { role: "user", content: prompt },
-    ]);
+      const raw = await this.callOpenRouter(summary, [
+        { role: "user", content: prompt },
+      ]);
 
-    try {
-      const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      }
-    } catch {}
+      try {
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          aiAdjustments = JSON.parse(jsonMatch[0]);
+        }
+      } catch {}
+    }
 
-    // Fallback: compute from salary and spending data
-    // Estimate monthly expenses from total (rough: assume data spans ~1 month)
-    const monthlyExpenses = summary.totalExpenses > 0 ? summary.totalExpenses : 0;
-    const monthlySavings = summary.salary
-      ? summary.salary - (monthlyExpenses > 0 ? monthlyExpenses : summary.salary * 0.7)
-      : (summary.totalIncome > 0 ? summary.totalIncome - monthlyExpenses : 0);
+    // Merge: realistic is always deterministic, AI provides optimistic/conservative
+    const aiProjections = aiAdjustments.projections ?? [];
+    const periods = ["1 month", "3 months", "6 months", "1 year"];
+    const multipliers = [1, 3, 6, 12];
 
-    const rate = Math.max(0, monthlySavings);
+    const projections = periods.map((period, i) => {
+      const realistic = realisticProjections[i].realistic;
+      const aiRow = aiProjections.find((p: any) => p.period === period);
+
+      return {
+        period,
+        optimistic: aiRow?.optimistic ?? Math.round(realisticRate * 1.2 * multipliers[i]),
+        realistic,
+        conservative: aiRow?.conservative ?? Math.round(realisticRate * 0.85 * multipliers[i]),
+      };
+    });
+
+    const insight = aiAdjustments.insight
+      ?? (realisticRate > 0
+        ? `Based on your income and expenses, you can save around ₱${Math.round(realisticRate).toLocaleString()} per month.`
+        : "Start tracking your income and expenses to get savings projections.");
+
     return {
-      monthlyRate: rate,
-      projections: [
-        { period: "1 month", optimistic: Math.round(rate * 1.2), realistic: Math.round(rate), conservative: Math.round(rate * 0.85) },
-        { period: "3 months", optimistic: Math.round(rate * 1.2 * 3), realistic: Math.round(rate * 3), conservative: Math.round(rate * 0.85 * 3) },
-        { period: "6 months", optimistic: Math.round(rate * 1.2 * 6), realistic: Math.round(rate * 6), conservative: Math.round(rate * 0.85 * 6) },
-        { period: "1 year", optimistic: Math.round(rate * 1.2 * 12), realistic: Math.round(rate * 12), conservative: Math.round(rate * 0.85 * 12) },
-      ],
-      insight: rate > 0
-        ? `At your current pace, you could save around ₱${Math.round(rate).toLocaleString()} per month.`
-        : "Start tracking your income and expenses to get savings projections.",
+      monthlyRate: realisticRate,
+      projections,
+      insight,
     };
   }
 
   // ─── Helpers ───────────────────────────────
 
   private async buildFinanceSummary(userId: string) {
-    const [incomeAgg, expenseAgg, saveAgg, onboarding] = await Promise.all([
+    const [incomeAgg, expenseAgg, saveAgg, onboarding, fixedExpenseAgg, fixedExpenses] = await Promise.all([
       this.prisma.transaction.aggregate({
         where: { userId, type: "INCOME" },
         _sum: { amount: true },
@@ -242,25 +272,40 @@ User's financial data: ${JSON.stringify(summary)}`;
         _sum: { amount: true },
       }),
       this.prisma.onboardingProfile.findUnique({ where: { userId } }),
+      this.prisma.fixedExpense.aggregate({
+        where: { userId },
+        _sum: { amount: true },
+      }),
+      this.prisma.fixedExpense.findMany({
+        where: { userId },
+        select: { name: true, amount: true },
+      }),
     ]);
 
     const income = Number(incomeAgg._sum.amount ?? 0);
     const expenses = Number(expenseAgg._sum.amount ?? 0);
     const saved = Number(saveAgg._sum.amount ?? 0);
+    const monthlyFixedExpenses = Number(fixedExpenseAgg._sum.amount ?? 0);
 
-    // Monthly salary: biweekly × 2
+    // Monthly salary: biweekly = 26 paychecks/year ÷ 12 months
     const rawSalary = onboarding ? Number(onboarding.salaryAmount) : 0;
     const monthlySalary = onboarding?.salaryFrequency === "BIWEEKLY"
-      ? rawSalary * 2
+      ? rawSalary * 26 / 12
       : rawSalary;
 
     return {
-      currentMoney: income - expenses - saved,
-      savedMoney: saved,
-      totalExpenses: expenses,
-      totalIncome: income,
-      salary: monthlySalary || null,
+      monthlyIncome: monthlySalary || null,
+      salaryPerPaycheck: rawSalary || null,
       salaryFrequency: onboarding?.salaryFrequency ?? null,
+      currentBalance: income - expenses - saved,
+      totalSaved: saved,
+      totalRecordedExpenses: expenses,
+      totalRecordedIncome: income,
+      monthlyFixedExpenses,
+      fixedExpenseBreakdown: fixedExpenses.map((fe) => ({
+        name: fe.name,
+        amount: Number(fe.amount),
+      })),
     };
   }
 
@@ -273,7 +318,7 @@ User's financial data: ${JSON.stringify(summary)}`;
     }
 
     try {
-      const systemPrompt = `You are a helpful personal finance assistant. The user's financial context: ${JSON.stringify(context)}. Give concise, actionable advice.`;
+      const systemPrompt = `You are a helpful personal finance assistant. The user's financial context is below. IMPORTANT: "monthlyIncome" is their confirmed recurring salary (already converted to monthly). Even if "totalRecordedExpenses" or "totalRecordedIncome" is 0, the user still earns monthlyIncome each month. "monthlyFixedExpenses" are recurring bills deducted every month.\n\nContext: ${JSON.stringify(context)}`;
 
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: "POST",
