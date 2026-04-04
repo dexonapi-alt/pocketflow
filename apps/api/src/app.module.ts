@@ -8,6 +8,7 @@ import { CategoriesModule } from "./categories/categories.module";
 import { TransactionsModule } from "./transactions/transactions.module";
 import { BudgetsModule } from "./budgets/budgets.module";
 import { SavingsGoalsModule } from "./savings-goals/savings-goals.module";
+import { FixedExpensesModule } from "./fixed-expenses/fixed-expenses.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
 import { AiModule } from "./ai/ai.module";
 import { NotificationsModule } from "./notifications/notifications.module";
@@ -27,6 +28,7 @@ import { SubscriptionsModule } from "./subscriptions/subscriptions.module";
     TransactionsModule,
     BudgetsModule,
     SavingsGoalsModule,
+    FixedExpensesModule,
     DashboardModule,
     AiModule,
     NotificationsModule,
