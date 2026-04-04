@@ -20,7 +20,7 @@ export class DashboardService {
     const cycleStart = this.getCycleStart(now, onboarding);
     const prevCycleStart = this.getPrevCycleStart(cycleStart, onboarding);
 
-    const [income, expenses, savings, spentToday, spentThisCycle, spentLastCycle] =
+    const [income, expenses, savings, spentToday, spentThisCycle, spentLastCycle, fixedExpenseAgg] =
       await Promise.all([
         this.sumByType(userId, "INCOME"),
         this.sumByType(userId, "EXPENSE"),
@@ -28,7 +28,13 @@ export class DashboardService {
         this.sumByType(userId, "EXPENSE", startOfDay, now),
         this.sumByType(userId, "EXPENSE", cycleStart, now),
         this.sumByType(userId, "EXPENSE", prevCycleStart, cycleStart),
+        this.prisma.fixedExpense.aggregate({
+          where: { userId },
+          _sum: { amount: true },
+        }),
       ]);
+
+    const monthlyFixedExpenses = Number(fixedExpenseAgg._sum.amount ?? 0);
 
     // Starting balance from onboarding
     const startingBalance = onboarding?.startingBalance
@@ -38,10 +44,10 @@ export class DashboardService {
     // Current money = starting balance + income - expenses - savings
     const currentMoney = startingBalance + income - expenses - savings;
 
-    // Monthly income: biweekly salary × 2, monthly salary × 1
+    // Monthly income: biweekly = 26 paychecks/year ÷ 12 months
     const salaryAmount = onboarding ? Number(onboarding.salaryAmount) : 0;
     const monthlyIncome = onboarding?.salaryFrequency === "BIWEEKLY"
-      ? salaryAmount * 2
+      ? salaryAmount * 26 / 12
       : salaryAmount;
 
     // Safe to spend = what you actually have right now
@@ -76,6 +82,7 @@ export class DashboardService {
       spentThisCycle,
       remainingThisCycle: safeToSpend,
       monthlyIncome,
+      monthlyFixedExpenses,
       daysUntilPayday,
       deltaVsLastCycle,
     };
