@@ -258,34 +258,34 @@ User's financial data: ${JSON.stringify(summary)}`;
   // ─── Helpers ───────────────────────────────
 
   private async buildFinanceSummary(userId: string) {
-    const [incomeAgg, expenseAgg, saveAgg, onboarding, fixedExpenseAgg, fixedExpenses] = await Promise.all([
+    const now = new Date();
+    const [incomeAgg, expenseAgg, saveAgg, onboarding, fixedExpenses] = await Promise.all([
       this.prisma.transaction.aggregate({
-        where: { userId, type: "INCOME" },
+        where: { userId, type: "INCOME", transactionDate: { lte: now } },
         _sum: { amount: true },
       }),
       this.prisma.transaction.aggregate({
-        where: { userId, type: "EXPENSE" },
+        where: { userId, type: "EXPENSE", transactionDate: { lte: now } },
         _sum: { amount: true },
       }),
       this.prisma.transaction.aggregate({
-        where: { userId, type: "SAVE" },
+        where: { userId, type: "SAVE", transactionDate: { lte: now } },
         _sum: { amount: true },
       }),
       this.prisma.onboardingProfile.findUnique({ where: { userId } }),
-      this.prisma.fixedExpense.aggregate({
-        where: { userId },
-        _sum: { amount: true },
-      }),
       this.prisma.fixedExpense.findMany({
         where: { userId },
-        select: { name: true, amount: true },
+        select: { name: true, amount: true, frequency: true },
       }),
     ]);
 
     const income = Number(incomeAgg._sum.amount ?? 0);
     const expenses = Number(expenseAgg._sum.amount ?? 0);
     const saved = Number(saveAgg._sum.amount ?? 0);
-    const monthlyFixedExpenses = Number(fixedExpenseAgg._sum.amount ?? 0);
+    const monthlyFixedExpenses = fixedExpenses.reduce((total, e) => {
+      const amt = Number(e.amount);
+      return total + (e.frequency === "BIWEEKLY" ? amt * 26 / 12 : amt);
+    }, 0);
 
     // Monthly salary: biweekly = 26 paychecks/year ÷ 12 months
     const rawSalary = onboarding ? Number(onboarding.salaryAmount) : 0;

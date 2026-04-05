@@ -12,6 +12,8 @@ export class FixedExpensesService {
         userId,
         name: dto.name,
         amount: dto.amount,
+        frequency: dto.frequency ?? "MONTHLY",
+        dueDate: dto.dueDate ?? null,
         icon: dto.icon,
       },
     });
@@ -46,10 +48,13 @@ export class FixedExpensesService {
   }
 
   async getMonthlyTotal(userId: string): Promise<number> {
-    const result = await this.prisma.fixedExpense.aggregate({
+    const expenses = await this.prisma.fixedExpense.findMany({
       where: { userId },
-      _sum: { amount: true },
+      select: { amount: true, frequency: true },
     });
-    return Number(result._sum.amount ?? 0);
+    return expenses.reduce((total, e) => {
+      const amount = Number(e.amount);
+      return total + (e.frequency === "BIWEEKLY" ? amount * 26 / 12 : amount);
+    }, 0);
   }
 }

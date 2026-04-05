@@ -20,21 +20,24 @@ export class DashboardService {
     const cycleStart = this.getCycleStart(now, onboarding);
     const prevCycleStart = this.getPrevCycleStart(cycleStart, onboarding);
 
-    const [income, expenses, savings, spentToday, spentThisCycle, spentLastCycle, fixedExpenseAgg] =
+    const [income, expenses, savings, spentToday, spentThisCycle, spentLastCycle, fixedExpenses] =
       await Promise.all([
-        this.sumByType(userId, "INCOME"),
-        this.sumByType(userId, "EXPENSE"),
-        this.sumByType(userId, "SAVE"),
+        this.sumByType(userId, "INCOME", undefined, now),
+        this.sumByType(userId, "EXPENSE", undefined, now),
+        this.sumByType(userId, "SAVE", undefined, now),
         this.sumByType(userId, "EXPENSE", startOfDay, now),
         this.sumByType(userId, "EXPENSE", cycleStart, now),
         this.sumByType(userId, "EXPENSE", prevCycleStart, cycleStart),
-        this.prisma.fixedExpense.aggregate({
+        this.prisma.fixedExpense.findMany({
           where: { userId },
-          _sum: { amount: true },
+          select: { amount: true, frequency: true },
         }),
       ]);
 
-    const monthlyFixedExpenses = Number(fixedExpenseAgg._sum.amount ?? 0);
+    const monthlyFixedExpenses = fixedExpenses.reduce((total, e) => {
+      const amt = Number(e.amount);
+      return total + (e.frequency === "BIWEEKLY" ? amt * 26 / 12 : amt);
+    }, 0);
 
     // Starting balance from onboarding
     const startingBalance = onboarding?.startingBalance
