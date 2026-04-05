@@ -15,6 +15,7 @@ import { NotificationsModule } from "./notifications/notifications.module";
 import { PlannerModule } from "./planner/planner.module";
 import { UserTasksModule } from "./user-tasks/user-tasks.module";
 import { SubscriptionsModule } from "./subscriptions/subscriptions.module";
+import { GoalsModule } from "./goals/goals.module";
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { SubscriptionsModule } from "./subscriptions/subscriptions.module";
     BudgetsModule,
     SavingsGoalsModule,
     FixedExpensesModule,
+    GoalsModule,
     DashboardModule,
     AiModule,
     NotificationsModule,

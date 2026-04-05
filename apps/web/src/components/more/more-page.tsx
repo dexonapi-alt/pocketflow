@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CreditCard, Target, Sparkles, ChevronRight, Check, X, Pencil,
-  Plus, Trash2, Receipt,
+  Plus, Trash2, Receipt, ShoppingBag, CalendarDays,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,13 @@ import {
   useUpdateFixedExpense,
   useDeleteFixedExpense,
 } from "@/hooks/use-fixed-expenses";
+import {
+  useGoals,
+  useCreateGoal,
+  useUpdateGoal,
+  useDeleteGoal,
+  type PurchaseGoal,
+} from "@/hooks/use-goals";
 import { apiPatch } from "@/lib/api-client";
 import { formatCurrency } from "@/lib/utils";
 
@@ -28,10 +35,16 @@ const inputClass = "h-12 rounded-2xl border border-black/10 bg-white px-4 text-[
 
 const goalTones = ["bg-[#2e7cd6]", "bg-[#df7b2d]", "bg-[#7357d8]", "bg-[#27945c]", "bg-[#d4587b]"];
 
+function formatEstimatedDate(iso: string | null): string {
+  if (!iso) return "Not achievable yet";
+  return new Date(iso).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" });
+}
+
 export function MorePage() {
-  const goalsQuery = useSavingsGoals();
+  const savingsGoalsQuery = useSavingsGoals();
   const onboardingQuery = useOnboarding();
   const fixedExpensesQuery = useFixedExpenses();
+  const goalsQuery = useGoals();
 
   // Salary editor state
   const [editingSalary, setEditingSalary] = useState(false);
@@ -43,17 +56,35 @@ export function MorePage() {
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [newExpenseName, setNewExpenseName] = useState("");
   const [newExpenseAmount, setNewExpenseAmount] = useState("");
+  const [newExpenseFreq, setNewExpenseFreq] = useState<"MONTHLY" | "BIWEEKLY">("MONTHLY");
+  const [newExpenseDueDate, setNewExpenseDueDate] = useState("");
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [editExpenseName, setEditExpenseName] = useState("");
   const [editExpenseAmount, setEditExpenseAmount] = useState("");
+  const [editExpenseFreq, setEditExpenseFreq] = useState<"MONTHLY" | "BIWEEKLY">("MONTHLY");
+  const [editExpenseDueDate, setEditExpenseDueDate] = useState("");
+
+  // Purchase goal form state
+  const [showAddGoal, setShowAddGoal] = useState(false);
+  const [newGoalName, setNewGoalName] = useState("");
+  const [newGoalPrice, setNewGoalPrice] = useState("");
+  const [newGoalNotes, setNewGoalNotes] = useState("");
 
   const createExpense = useCreateFixedExpense();
   const updateExpense = useUpdateFixedExpense();
   const deleteExpense = useDeleteFixedExpense();
+  const createGoal = useCreateGoal();
+  const updateGoal = useUpdateGoal();
+  const deleteGoal = useDeleteGoal();
 
   const onboarding = onboardingQuery.data?.data;
   const fixedExpenses = fixedExpensesQuery.data?.data ?? [];
-  const totalFixed = fixedExpenses.reduce((acc, e) => acc + Number(e.amount), 0);
+  const purchaseGoals: PurchaseGoal[] = goalsQuery.data?.data ?? [];
+
+  const totalFixed = fixedExpenses.reduce((acc, e) => {
+    const amt = Number(e.amount);
+    return acc + (e.frequency === "BIWEEKLY" ? amt * 26 / 12 : amt);
+  }, 0);
 
   const openSalaryEditor = () => {
     setEditAmount(onboarding ? String(Number(onboarding.salaryAmount)) : "");
@@ -77,36 +108,77 @@ export function MorePage() {
   const handleAddExpense = () => {
     const amount = parseFloat(newExpenseAmount);
     if (!newExpenseName.trim() || !amount || amount <= 0) return;
+    const dueDate = parseInt(newExpenseDueDate);
     createExpense.mutate(
-      { name: newExpenseName.trim(), amount },
+      {
+        name: newExpenseName.trim(),
+        amount,
+        frequency: newExpenseFreq,
+        dueDate: dueDate >= 1 && dueDate <= 31 ? dueDate : undefined,
+      },
       {
         onSuccess: () => {
           setNewExpenseName("");
           setNewExpenseAmount("");
+          setNewExpenseFreq("MONTHLY");
+          setNewExpenseDueDate("");
           setShowAddExpense(false);
         },
       },
     );
   };
 
-  const startEditExpense = (expense: { id: string; name: string; amount: number }) => {
+  const startEditExpense = (expense: { id: string; name: string; amount: number; frequency: string; dueDate: number | null }) => {
     setEditingExpenseId(expense.id);
     setEditExpenseName(expense.name);
     setEditExpenseAmount(String(expense.amount));
+    setEditExpenseFreq(expense.frequency as "MONTHLY" | "BIWEEKLY");
+    setEditExpenseDueDate(expense.dueDate ? String(expense.dueDate) : "");
   };
 
   const handleUpdateExpense = () => {
     if (!editingExpenseId) return;
     const amount = parseFloat(editExpenseAmount);
     if (!editExpenseName.trim() || !amount || amount <= 0) return;
+    const dueDate = parseInt(editExpenseDueDate);
     updateExpense.mutate(
-      { id: editingExpenseId, name: editExpenseName.trim(), amount },
+      {
+        id: editingExpenseId,
+        name: editExpenseName.trim(),
+        amount,
+        frequency: editExpenseFreq,
+        dueDate: dueDate >= 1 && dueDate <= 31 ? dueDate : null,
+      },
       { onSuccess: () => setEditingExpenseId(null) },
     );
   };
 
   const handleDeleteExpense = (id: string) => {
     deleteExpense.mutate(id);
+  };
+
+  const handleAddGoal = () => {
+    const price = parseFloat(newGoalPrice);
+    if (!newGoalName.trim() || !price || price <= 0) return;
+    createGoal.mutate(
+      { name: newGoalName.trim(), targetPrice: price, notes: newGoalNotes.trim() || undefined },
+      {
+        onSuccess: () => {
+          setNewGoalName("");
+          setNewGoalPrice("");
+          setNewGoalNotes("");
+          setShowAddGoal(false);
+        },
+      },
+    );
+  };
+
+  const handleDeleteGoal = (id: string) => {
+    deleteGoal.mutate(id);
+  };
+
+  const handleToggleAchieved = (goal: PurchaseGoal) => {
+    updateGoal.mutate({ id: goal.id, isAchieved: !goal.isAchieved });
   };
 
   const salaryNote = onboarding
@@ -123,13 +195,13 @@ export function MorePage() {
 
   const settingsItems = [
     { key: "salary", title: "Salary plan", note: salaryNote, icon: CreditCard, tone: "bg-[#f4efff] text-[#7357d8]", editable: true },
-    { key: "goals", title: "Savings goals", note: `${goalsQuery.data?.data?.length ?? 0} active goals`, icon: Target, tone: "bg-[#eef7ff] text-[#2e7cd6]", editable: false },
+    { key: "goals", title: "Savings goals", note: `${savingsGoalsQuery.data?.data?.length ?? 0} active goals`, icon: Target, tone: "bg-[#eef7ff] text-[#2e7cd6]", editable: false },
     { key: "ai", title: "AI coach", note: "Weekly tips enabled", icon: Sparkles, tone: "bg-[#fff4e8] text-[#df7b2d]", editable: false },
   ];
 
-  const apiGoals = goalsQuery.data?.data;
-  const goals = apiGoals && apiGoals.length > 0
-    ? apiGoals.map((g, i) => ({
+  const apiSavingsGoals = savingsGoalsQuery.data?.data;
+  const savingsGoals = apiSavingsGoals && apiSavingsGoals.length > 0
+    ? apiSavingsGoals.map((g, i) => ({
         id: g.id,
         name: g.name,
         currentAmount: Number(g.currentAmount),
@@ -141,8 +213,9 @@ export function MorePage() {
 
   return (
     <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-      {/* ─── Profile & Settings ─── */}
+      {/* ─── Left Column ─── */}
       <div className="space-y-6">
+        {/* ─── Profile & Settings ─── */}
         <Card className={card}>
           <CardHeader>
             <SectionEyebrow>Profile</SectionEyebrow>
@@ -177,7 +250,6 @@ export function MorePage() {
               </div>
             )}
 
-            {/* ─── Salary Editor Modal ─── */}
             <AnimatePresence>
               {editingSalary && (
                 <motion.div
@@ -228,7 +300,7 @@ export function MorePage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <SectionEyebrow>Monthly bills</SectionEyebrow>
+                <SectionEyebrow>Recurring bills</SectionEyebrow>
                 <CardTitle className="mt-2 text-[24px] font-semibold tracking-[-0.03em]">Fixed expenses</CardTitle>
               </div>
               <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#fff1f0] text-[#d4587b]">
@@ -237,17 +309,15 @@ export function MorePage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            {/* Total */}
             {fixedExpenses.length > 0 && (
               <div className="rounded-[22px] border border-black/6 bg-[#fcfcfb] p-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-black/42">Total monthly fixed</p>
+                  <p className="text-sm text-black/42">Total monthly equivalent</p>
                   <p className="text-[20px] font-semibold tracking-[-0.03em]">{formatCurrency(totalFixed)}</p>
                 </div>
               </div>
             )}
 
-            {/* Expense list */}
             {fixedExpenses.map((expense) => (
               <div key={expense.id}>
                 {editingExpenseId === expense.id ? (
@@ -275,6 +345,28 @@ export function MorePage() {
                       value={editExpenseAmount}
                       onChange={(e) => setEditExpenseAmount(e.target.value)}
                     />
+                    <div className="grid grid-cols-2 gap-3">
+                      {(["MONTHLY", "BIWEEKLY"] as const).map((f) => (
+                        <button
+                          key={f}
+                          onClick={() => setEditExpenseFreq(f)}
+                          className={`rounded-2xl border p-3 text-sm font-medium transition ${
+                            editExpenseFreq === f ? "border-black bg-black/[0.02]" : "border-black/6 bg-[#fcfcfb]"
+                          }`}
+                        >
+                          {f === "MONTHLY" ? "Monthly" : "Bi-weekly"}
+                        </button>
+                      ))}
+                    </div>
+                    <Input
+                      className={inputClass}
+                      placeholder="Due date (day 1-31, optional)"
+                      type="number"
+                      min={1}
+                      max={31}
+                      value={editExpenseDueDate}
+                      onChange={(e) => setEditExpenseDueDate(e.target.value)}
+                    />
                     <Button
                       onClick={handleUpdateExpense}
                       disabled={updateExpense.isPending}
@@ -291,12 +383,15 @@ export function MorePage() {
                       </div>
                       <div>
                         <p className="text-[15px] font-medium text-black">{expense.name}</p>
-                        <p className="mt-0.5 text-sm text-black/42">{formatCurrency(Number(expense.amount))}/mo</p>
+                        <p className="mt-0.5 text-sm text-black/42">
+                          {formatCurrency(Number(expense.amount))}/{expense.frequency === "BIWEEKLY" ? "bi-wk" : "mo"}
+                          {expense.dueDate ? ` · Due day ${expense.dueDate}` : ""}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() => startEditExpense({ id: expense.id, name: expense.name, amount: Number(expense.amount) })}
+                        onClick={() => startEditExpense({ id: expense.id, name: expense.name, amount: Number(expense.amount), frequency: expense.frequency, dueDate: expense.dueDate })}
                         className="rounded-xl p-2 text-black/28 transition hover:bg-black/4 hover:text-black/60"
                       >
                         <Pencil className="h-3.5 w-3.5" />
@@ -315,11 +410,10 @@ export function MorePage() {
 
             {fixedExpenses.length === 0 && !showAddExpense && (
               <p className="py-6 text-center text-sm text-black/38">
-                No fixed expenses yet. Add your monthly bills like rent, internet, utilities.
+                No fixed expenses yet. Add your monthly or bi-weekly bills.
               </p>
             )}
 
-            {/* Add new expense form */}
             <AnimatePresence>
               {showAddExpense && (
                 <motion.div
@@ -343,10 +437,32 @@ export function MorePage() {
                     />
                     <Input
                       className={inputClass}
-                      placeholder="₱ Monthly amount"
+                      placeholder="₱ Amount"
                       type="number"
                       value={newExpenseAmount}
                       onChange={(e) => setNewExpenseAmount(e.target.value)}
+                    />
+                    <div className="grid grid-cols-2 gap-3">
+                      {(["MONTHLY", "BIWEEKLY"] as const).map((f) => (
+                        <button
+                          key={f}
+                          onClick={() => setNewExpenseFreq(f)}
+                          className={`rounded-2xl border p-3 text-sm font-medium transition ${
+                            newExpenseFreq === f ? "border-black bg-black/[0.02]" : "border-black/6 bg-[#fcfcfb]"
+                          }`}
+                        >
+                          {f === "MONTHLY" ? "Monthly" : "Bi-weekly"}
+                        </button>
+                      ))}
+                    </div>
+                    <Input
+                      className={inputClass}
+                      placeholder="Due date (day 1-31, optional)"
+                      type="number"
+                      min={1}
+                      max={31}
+                      value={newExpenseDueDate}
+                      onChange={(e) => setNewExpenseDueDate(e.target.value)}
                     />
                     <Button
                       onClick={handleAddExpense}
@@ -372,32 +488,170 @@ export function MorePage() {
         </Card>
       </div>
 
-      {/* ─── Savings Progress ─── */}
-      <Card className={card}>
-        <CardHeader>
-          <SectionEyebrow>Goals</SectionEyebrow>
-          <CardTitle className="mt-2 text-[24px] font-semibold tracking-[-0.03em]">Savings progress</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {goals.length === 0 && (
-            <p className="py-8 text-center text-sm text-black/38">No savings goals yet.</p>
-          )}
-          {goals.map((goal) => (
-            <div key={goal.id ?? goal.name} className="rounded-[22px] border border-black/6 bg-[#fcfcfb] p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <div>
-                  <p className="text-[15px] font-medium text-black">{goal.name}</p>
-                  <p className="mt-1 text-sm text-black/42">{formatCurrency(goal.currentAmount)} saved</p>
-                </div>
-                <Badge className="rounded-full border border-black/6 bg-white px-3 py-1 text-black/58 hover:bg-white">{goal.pct}%</Badge>
+      {/* ─── Right Column ─── */}
+      <div className="space-y-6">
+        {/* ─── Purchase Goals ─── */}
+        <Card className={card}>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <SectionEyebrow>Goals</SectionEyebrow>
+                <CardTitle className="mt-2 text-[24px] font-semibold tracking-[-0.03em]">Purchase goals</CardTitle>
               </div>
-              <div className="h-2 rounded-full bg-black/6">
-                <motion.div initial={{ width: 0 }} animate={{ width: `${goal.pct}%` }} transition={{ duration: 0.45 }} className={`h-2 rounded-full ${goal.tone}`} />
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#eef7ff] text-[#2e7cd6]">
+                <ShoppingBag className="h-4 w-4" />
               </div>
             </div>
-          ))}
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {purchaseGoals.map((goal, i) => (
+              <div
+                key={goal.id}
+                className={`rounded-[22px] border border-black/6 p-4 ${goal.isAchieved ? "bg-[#ecfaf1]/40" : "bg-[#fcfcfb]"}`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className={`${iconWrap} ${goal.isAchieved ? "bg-[#ecfaf1] text-[#27945c]" : "bg-[#eef7ff] text-[#2e7cd6]"}`}>
+                      <ShoppingBag className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className={`text-[15px] font-medium ${goal.isAchieved ? "text-[#27945c] line-through" : "text-black"}`}>
+                        {goal.name}
+                      </p>
+                      <p className="mt-0.5 text-[20px] font-semibold tracking-[-0.03em] text-black">
+                        {formatCurrency(goal.targetPrice)}
+                      </p>
+                      {!goal.isAchieved && (
+                        <div className="mt-2 space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <CalendarDays className="h-3.5 w-3.5 text-black/30" />
+                            <p className="text-sm text-black/50">
+                              {goal.monthsToGoal
+                                ? `~${goal.monthsToGoal} month${goal.monthsToGoal !== 1 ? "s" : ""}${goal.paychecksToGoal ? ` (${goal.paychecksToGoal} paycheck${goal.paychecksToGoal !== 1 ? "s" : ""})` : ""} · ${formatEstimatedDate(goal.estimatedDate)}`
+                                : "Add income to compute timeline"
+                              }
+                            </p>
+                          </div>
+                          {goal.monthlySavingsRate > 0 && (
+                            <p className="text-xs text-black/38">
+                              Saving ~{formatCurrency(goal.monthlySavingsRate)}/mo
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      {goal.isAchieved && (
+                        <p className="mt-1 text-sm font-medium text-[#27945c]">Achieved!</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleToggleAchieved(goal)}
+                      className={`rounded-xl p-2 transition ${goal.isAchieved ? "text-[#27945c] hover:bg-[#ecfaf1]" : "text-black/28 hover:bg-black/4 hover:text-black/60"}`}
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteGoal(goal.id)}
+                      className="rounded-xl p-2 text-black/28 transition hover:bg-red-50 hover:text-red-500"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {purchaseGoals.length === 0 && !showAddGoal && (
+              <p className="py-6 text-center text-sm text-black/38">
+                No purchase goals yet. Add items like a laptop, phone, or vacation.
+              </p>
+            )}
+
+            <AnimatePresence>
+              {showAddGoal && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="rounded-[22px] border border-black/8 bg-white p-5 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[15px] font-medium text-black">New purchase goal</p>
+                      <button onClick={() => setShowAddGoal(false)} className="text-black/30 hover:text-black">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <Input
+                      className={inputClass}
+                      placeholder="e.g. MacBook Pro, iPhone, Vacation"
+                      value={newGoalName}
+                      onChange={(e) => setNewGoalName(e.target.value)}
+                    />
+                    <Input
+                      className={inputClass}
+                      placeholder="₱ Target price"
+                      type="number"
+                      value={newGoalPrice}
+                      onChange={(e) => setNewGoalPrice(e.target.value)}
+                    />
+                    <Input
+                      className={inputClass}
+                      placeholder="Notes (optional)"
+                      value={newGoalNotes}
+                      onChange={(e) => setNewGoalNotes(e.target.value)}
+                    />
+                    <Button
+                      onClick={handleAddGoal}
+                      disabled={createGoal.isPending}
+                      className="h-11 w-full rounded-2xl bg-black text-white hover:bg-black/90"
+                    >
+                      <Check className="mr-2 h-4 w-4" /> {createGoal.isPending ? "Adding..." : "Add goal"}
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {!showAddGoal && (
+              <button
+                onClick={() => setShowAddGoal(true)}
+                className="flex w-full items-center justify-center gap-2 rounded-[22px] border border-dashed border-black/12 p-4 text-sm font-medium text-black/42 transition hover:border-black/20 hover:text-black/60"
+              >
+                <Plus className="h-4 w-4" /> Add purchase goal
+              </button>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ─── Savings Progress ─── */}
+        <Card className={card}>
+          <CardHeader>
+            <SectionEyebrow>Savings</SectionEyebrow>
+            <CardTitle className="mt-2 text-[24px] font-semibold tracking-[-0.03em]">Savings progress</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {savingsGoals.length === 0 && (
+              <p className="py-8 text-center text-sm text-black/38">No savings goals yet.</p>
+            )}
+            {savingsGoals.map((goal) => (
+              <div key={goal.id ?? goal.name} className="rounded-[22px] border border-black/6 bg-[#fcfcfb] p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-[15px] font-medium text-black">{goal.name}</p>
+                    <p className="mt-1 text-sm text-black/42">{formatCurrency(goal.currentAmount)} saved</p>
+                  </div>
+                  <Badge className="rounded-full border border-black/6 bg-white px-3 py-1 text-black/58 hover:bg-white">{goal.pct}%</Badge>
+                </div>
+                <div className="h-2 rounded-full bg-black/6">
+                  <motion.div initial={{ width: 0 }} animate={{ width: `${goal.pct}%` }} transition={{ duration: 0.45 }} className={`h-2 rounded-full ${goal.tone}`} />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
