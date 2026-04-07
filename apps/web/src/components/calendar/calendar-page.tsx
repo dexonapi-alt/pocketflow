@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ChevronLeft, ChevronRight, Plus, Pin, X, Trash2, Receipt,
+  ChevronLeft, ChevronRight, Plus, Pin, X, Trash2, Receipt, Check,
   ShoppingBag, ArrowDownLeft, ArrowUpRight, DollarSign, Clock, Wallet,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { SectionEyebrow } from "@/components/shared";
 import { usePlannerMonth, useCreateEvent, useDeleteEvent } from "@/hooks/use-planner";
 import { useFixedExpenses, type FixedExpense } from "@/hooks/use-fixed-expenses";
-import { useGoals, type PurchaseGoal } from "@/hooks/use-goals";
+import { useGoals, useUpdateGoal, type PurchaseGoal } from "@/hooks/use-goals";
 import { useTransactions, useCreateTransaction, useDeleteTransaction } from "@/hooks/use-transactions";
 import { useCategories } from "@/hooks/use-categories";
 import { useOnboarding } from "@/hooks/use-onboarding";
@@ -150,6 +150,7 @@ export function CalendarPage() {
   const deleteEvent = useDeleteEvent();
   const fixedExpensesQuery = useFixedExpenses();
   const goalsQuery = useGoals();
+  const updateGoal = useUpdateGoal();
   const categoriesQuery = useCategories();
   const onboardingQuery = useOnboarding();
 
@@ -661,15 +662,36 @@ export function CalendarPage() {
             <div className="space-y-2">
               <p className="text-xs font-medium uppercase tracking-wider text-black/30">Goal target date</p>
               {selectedGoals.map((goal) => (
-                <div key={goal.id} className="flex items-center gap-3 rounded-[22px] border border-[#7357d8]/15 bg-[#f6f3ff]/30 p-4">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#f6f3ff] text-[#7357d8]">
-                    <ShoppingBag className="h-3.5 w-3.5" />
-                  </div>
-                  <div>
-                    <p className="text-[15px] font-medium text-black">{goal.name}</p>
-                    <p className="text-sm text-black/42">
-                      Target: {formatCurrency(goal.targetPrice)}
-                    </p>
+                <div key={goal.id} className={`rounded-[22px] border p-4 ${goal.isAchieved ? "border-[#27945c]/20 bg-[#ecfaf1]/30" : "border-[#7357d8]/15 bg-[#f6f3ff]/30"}`}>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-3">
+                      <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${goal.isAchieved ? "bg-[#ecfaf1] text-[#27945c]" : "bg-[#f6f3ff] text-[#7357d8]"}`}>
+                        {goal.isAchieved ? <Check className="h-4 w-4" /> : <ShoppingBag className="h-3.5 w-3.5" />}
+                      </div>
+                      <div>
+                        <p className={`text-[15px] font-semibold ${goal.isAchieved ? "text-[#27945c] line-through" : "text-black"}`}>{goal.name}</p>
+                        <p className="mt-0.5 text-sm font-medium text-black/50">
+                          Target: {formatCurrency(goal.targetPrice)}
+                        </p>
+                        {goal.projectedBalanceAfter !== null && !goal.isAchieved && (
+                          <p className="mt-1 text-sm text-[#27945c] font-medium">
+                            Balance after purchase: {formatCurrency(goal.projectedBalanceAfter)}
+                          </p>
+                        )}
+                        {goal.isAchieved && (
+                          <p className="mt-1 text-sm font-medium text-[#27945c]">Purchased!</p>
+                        )}
+                      </div>
+                    </div>
+                    {!goal.isAchieved && (
+                      <button
+                        onClick={() => updateGoal.mutate({ id: goal.id, isAchieved: true })}
+                        disabled={updateGoal.isPending}
+                        className="flex items-center gap-1.5 rounded-xl bg-[#7357d8] px-3 py-1.5 text-xs font-medium text-white transition hover:bg-[#6347c8]"
+                      >
+                        <Check className="h-3 w-3" /> Bought it
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
