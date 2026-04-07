@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Plus, Check, Circle, Clock, Trash2, Flag, AlertTriangle } from "lucide-react";
+import { Plus, Check, Circle, Clock, Trash2, Flag, AlertTriangle, Target, CalendarDays, Wallet, ShoppingBag } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -147,6 +147,75 @@ export function TaskManagerPage() {
               const pri = priorityConfig[task.priority] ?? priorityConfig.MEDIUM;
               const sta = statusConfig[task.status] ?? statusConfig.TODO;
               const isDone = task.status === "DONE";
+              const isGoalTask = task.description?.startsWith("Purchase goal:");
+
+              if (isGoalTask) {
+                const dueDateStr = task.dueDate
+                  ? new Date(task.dueDate).toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" })
+                  : null;
+
+                const goalSteps = [
+                  { key: "TODO", label: "Planned", icon: Target, color: "text-[#7357d8]", bg: "bg-[#f6f3ff]", ring: "ring-[#7357d8]" },
+                  { key: "IN_PROGRESS", label: "Saving for it", icon: Wallet, color: "text-[#df7b2d]", bg: "bg-[#fff4e8]", ring: "ring-[#df7b2d]" },
+                  { key: "DONE", label: "Bought it!", icon: ShoppingBag, color: "text-[#27945c]", bg: "bg-[#ecfaf1]", ring: "ring-[#27945c]" },
+                ];
+                const currentIdx = goalSteps.findIndex((s) => s.key === task.status);
+                const currentStep = goalSteps[currentIdx] ?? goalSteps[0];
+
+                return (
+                  <div key={task.id} className={`rounded-[22px] border p-4 transition ${isDone ? "border-[#27945c]/20 bg-[#ecfaf1]/20" : "border-[#7357d8]/15 bg-gradient-to-r from-[#f6f3ff]/40 to-[#fcfcfb]"}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <button
+                          onClick={() => updateTask.mutate({ id: task.id, status: cycleStatus(task.status) })}
+                          className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition ${currentStep.bg} ${currentStep.color} hover:ring-2 ${currentStep.ring}/30`}
+                          title={`Next: ${goalSteps[(currentIdx + 1) % goalSteps.length].label}`}
+                        >
+                          <currentStep.icon className="h-4 w-4" />
+                        </button>
+                        <div className="min-w-0">
+                          <p className={`text-[15px] font-semibold ${isDone ? "line-through text-black/40" : "text-black"}`}>{task.title}</p>
+                          <p className="mt-0.5 text-sm text-black/45 font-medium">{task.description}</p>
+
+                          {/* Progress steps */}
+                          <div className="mt-3 flex items-center gap-1">
+                            {goalSteps.map((step, idx) => {
+                              const isActive = idx <= currentIdx;
+                              const StepIcon = step.icon;
+                              return (
+                                <div key={step.key} className="flex items-center gap-1">
+                                  {idx > 0 && (
+                                    <div className={`h-[2px] w-4 rounded-full transition ${isActive ? "bg-[#27945c]" : "bg-black/10"}`} />
+                                  )}
+                                  <div
+                                    className={`flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium transition ${
+                                      isActive ? `${step.bg} ${step.color}` : "bg-black/[0.03] text-black/30"
+                                    }`}
+                                  >
+                                    <StepIcon className="h-3 w-3" />
+                                    <span className="hidden sm:inline">{step.label}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {dueDateStr && (
+                            <div className="mt-2">
+                              <Badge className="rounded-full border-0 bg-[#f6f3ff] px-2.5 py-0.5 text-[11px] text-[#7357d8] hover:bg-[#f6f3ff]">
+                                <CalendarDays className="mr-1 h-3 w-3" /> {dueDateStr}
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <button onClick={() => deleteTask.mutate(task.id)} className="rounded-xl p-2 text-black/20 hover:bg-black/[0.04] hover:text-[#d4587b]">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
 
               return (
                 <div key={task.id} className={`flex items-center justify-between rounded-[22px] border border-black/6 p-4 transition ${isDone ? "bg-[#fcfcfb] opacity-60" : "bg-[#fcfcfb] hover:bg-white"}`}>
@@ -161,9 +230,17 @@ export function TaskManagerPage() {
                     </button>
                     <div>
                       <p className={`text-[15px] font-medium ${isDone ? "line-through text-black/40" : "text-black"}`}>{task.title}</p>
-                      <div className="mt-1 flex items-center gap-2">
+                      {task.description && (
+                        <p className="mt-0.5 text-sm text-black/40">{task.description}</p>
+                      )}
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
                         <Badge className={`rounded-full px-2 py-0.5 text-[11px] ${pri.color}`}>{pri.label}</Badge>
                         <Badge className={`rounded-full px-2 py-0.5 text-[11px] ${sta.color}`}>{sta.label}</Badge>
+                        {task.dueDate && (
+                          <Badge className="rounded-full border-0 bg-[#f3f3f1] px-2 py-0.5 text-[11px] text-black/50 hover:bg-[#f3f3f1]">
+                            <CalendarDays className="mr-1 h-3 w-3" /> {new Date(task.dueDate).toLocaleDateString("en-PH", { month: "short", day: "numeric" })}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   </div>
