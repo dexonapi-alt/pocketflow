@@ -69,6 +69,7 @@ export function MorePage() {
   const [newGoalName, setNewGoalName] = useState("");
   const [newGoalPrice, setNewGoalPrice] = useState("");
   const [newGoalNotes, setNewGoalNotes] = useState("");
+  const [newGoalAddToTasks, setNewGoalAddToTasks] = useState(false);
 
   const createExpense = useCreateFixedExpense();
   const updateExpense = useUpdateFixedExpense();
@@ -161,12 +162,18 @@ export function MorePage() {
     const price = parseFloat(newGoalPrice);
     if (!newGoalName.trim() || !price || price <= 0) return;
     createGoal.mutate(
-      { name: newGoalName.trim(), targetPrice: price, notes: newGoalNotes.trim() || undefined },
+      {
+        name: newGoalName.trim(),
+        targetPrice: price,
+        notes: newGoalNotes.trim() || undefined,
+        addToTasks: newGoalAddToTasks || undefined,
+      },
       {
         onSuccess: () => {
           setNewGoalName("");
           setNewGoalPrice("");
           setNewGoalNotes("");
+          setNewGoalAddToTasks(false);
           setShowAddGoal(false);
         },
       },
@@ -602,6 +609,20 @@ export function MorePage() {
                       value={newGoalNotes}
                       onChange={(e) => setNewGoalNotes(e.target.value)}
                     />
+                    <button
+                      onClick={() => setNewGoalAddToTasks(!newGoalAddToTasks)}
+                      className="flex w-full items-center gap-3 rounded-2xl border border-black/6 bg-[#fcfcfb] p-4 text-left transition hover:bg-white"
+                    >
+                      <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition ${
+                        newGoalAddToTasks ? "border-black bg-black" : "border-black/20"
+                      }`}>
+                        {newGoalAddToTasks && <Check className="h-3 w-3 text-white" />}
+                      </div>
+                      <div>
+                        <p className="text-[14px] font-medium text-black">Add to my tasks</p>
+                        <p className="text-xs text-black/40">Creates a task with the goal&apos;s target date as deadline</p>
+                      </div>
+                    </button>
                     <Button
                       onClick={handleAddGoal}
                       disabled={createGoal.isPending}

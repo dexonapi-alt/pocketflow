@@ -14,6 +14,7 @@ export interface PurchaseGoal {
   paychecksToGoal: number | null;
   monthsToGoal: number | null;
   estimatedDate: string | null;
+  projectedBalanceAfter: number | null;
   createdAt: string;
 }
 
@@ -33,10 +34,13 @@ export function useCreateGoal() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: { name: string; targetPrice: number; icon?: string; notes?: string }) =>
+    mutationFn: (data: { name: string; targetPrice: number; icon?: string; notes?: string; addToTasks?: boolean }) =>
       apiPost("/goals", data),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       qc.invalidateQueries({ queryKey: ["goals"] });
+      if (variables.addToTasks) {
+        qc.invalidateQueries({ queryKey: ["user-tasks"] });
+      }
     },
   });
 }
@@ -49,6 +53,7 @@ export function useUpdateGoal() {
       apiPatch(`/goals/${id}`, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["goals"] });
+      qc.invalidateQueries({ queryKey: ["user-tasks"] });
     },
   });
 }

@@ -2,6 +2,7 @@ import {
   IsString,
   IsNumber,
   IsOptional,
+  IsBoolean,
   Min,
   MaxLength,
 } from "class-validator";
@@ -24,4 +25,8 @@ export class CreateGoalDto {
   @IsString()
   @MaxLength(500)
   notes?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  addToTasks?: boolean;
 }

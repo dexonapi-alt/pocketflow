@@ -16,7 +16,23 @@ export class GoalsService {
         notes: dto.notes,
       },
     });
-    return this.enrichGoal(userId, goal);
+    const enriched = await this.enrichGoal(userId, goal);
+
+    if (dto.addToTasks) {
+      await this.prisma.userTask.create({
+        data: {
+          userId,
+          title: `Save for ${dto.name}`,
+          description: `Purchase goal: ₱${Number(dto.targetPrice).toLocaleString()}`,
+          priority: "MEDIUM",
+          dueDate: enriched.estimatedDate
+            ? new Date(enriched.estimatedDate)
+            : null,
+        },
+      });
+    }
+
+    return enriched;
   }
 
   async findAll(userId: string) {
@@ -45,6 +61,27 @@ export class GoalsService {
       where: { id },
       data: dto,
     });
+
+    if (dto.isAchieved === true && !existing.isAchieved) {
+      await this.prisma.userTask.updateMany({
+        where: {
+          userId,
+          title: `Save for ${existing.name}`,
+          status: { not: "DONE" },
+        },
+        data: { status: "DONE", completedAt: new Date() },
+      });
+    } else if (dto.isAchieved === false && existing.isAchieved) {
+      await this.prisma.userTask.updateMany({
+        where: {
+          userId,
+          title: `Save for ${existing.name}`,
+          status: "DONE",
+        },
+        data: { status: "TODO", completedAt: null },
+      });
+    }
+
     return this.enrichGoal(userId, goal);
   }
 
@@ -114,6 +151,13 @@ export class GoalsService {
       );
     }
 
+    let projectedBalanceAfter: number | null = null;
+    if (paychecksToGoal !== null && savingsPerPaycheck > 0) {
+      projectedBalanceAfter = Math.round(
+        paychecksToGoal * savingsPerPaycheck - targetPrice,
+      );
+    }
+
     return {
       ...goal,
       targetPrice,
@@ -121,6 +165,7 @@ export class GoalsService {
       paychecksToGoal,
       monthsToGoal,
       estimatedDate,
+      projectedBalanceAfter,
     };
   }
 
