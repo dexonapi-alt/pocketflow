@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft, ChevronRight, Plus, Pin, X, Trash2, Receipt, Check,
   ShoppingBag, ArrowDownLeft, ArrowUpRight, DollarSign, Clock, Wallet,
+  CalendarDays, AlertCircle, GripVertical,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -144,6 +145,10 @@ export function CalendarPage() {
   const [txAmount, setTxAmount] = useState("");
   const [txNote, setTxNote] = useState("");
   const [txCategoryId, setTxCategoryId] = useState("");
+
+  // Goal drag-and-drop + date warning modal
+  const [draggingGoalId, setDraggingGoalId] = useState<string | null>(null);
+  const [goalWarning, setGoalWarning] = useState<{ goalName: string; minDate: string; balance: number } | null>(null);
 
   const eventsQuery = usePlannerMonth(year, month);
   const createEvent = useCreateEvent();
@@ -301,6 +306,30 @@ export function CalendarPage() {
     setTxCategoryId("");
   };
 
+  const handleGoalDateChange = (goal: PurchaseGoal, newDateStr: string) => {
+    if (!goal.minEstimatedDate) return;
+    const newDate = new Date(newDateStr + "T12:00:00");
+    const minDate = new Date(goal.minEstimatedDate);
+
+    if (newDate < minDate) {
+      const shortfall = goal.targetPrice - (goal.savingsPerPaycheck * (goal.paychecksToGoal ?? 0));
+      setGoalWarning({
+        goalName: goal.name,
+        minDate: minDate.toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" }),
+        balance: Math.round(shortfall),
+      });
+      return;
+    }
+
+    updateGoal.mutate({ id: goal.id, targetDate: newDate.toISOString() });
+  };
+
+  const handleGoalDrop = (goalId: string, dateStr: string) => {
+    const goal = purchaseGoals.find((g) => g.id === goalId);
+    if (!goal || goal.isAchieved) return;
+    handleGoalDateChange(goal, dateStr);
+  };
+
   const today = new Date();
   const isToday = (day: number) =>
     day === today.getDate() && month === today.getMonth() + 1 && year === today.getFullYear();
@@ -351,7 +380,7 @@ export function CalendarPage() {
               <span className="text-xs text-black/38">Bills</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="h-[4px] w-3 rounded-full bg-[#7357d8]" />
+              <div className="rounded bg-[#f0ecff] px-1 text-[8px] font-semibold text-[#7357d8]">🎯</div>
               <span className="text-xs text-black/38">Goal</span>
             </div>
           </div>
@@ -371,6 +400,14 @@ export function CalendarPage() {
                 <button
                   key={day}
                   onClick={() => { setSelectedDate(dateStr); setAddMode(null); }}
+                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("ring-2", "ring-[#7357d8]/40"); }}
+                  onDragLeave={(e) => { e.currentTarget.classList.remove("ring-2", "ring-[#7357d8]/40"); }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.remove("ring-2", "ring-[#7357d8]/40");
+                    const goalId = e.dataTransfer.getData("goalId");
+                    if (goalId) handleGoalDrop(goalId, dateStr);
+                  }}
                   className={`relative flex min-h-[72px] flex-col items-center justify-between rounded-2xl p-1.5 pb-2 transition ${
                     isSelected ? "bg-black text-white" : isToday(day) ? "bg-[#eef7ff] text-[#2e7cd6]" : "hover:bg-black/[0.03]"
                   }`}
@@ -378,7 +415,6 @@ export function CalendarPage() {
                   <span className={`text-sm font-medium ${isSelected ? "text-white" : ""}`}>{day}</span>
 
                   <div className="flex w-full flex-col items-center gap-1 mt-auto">
-                    {/* Dot markers for events & transactions */}
                     {dots.length > 0 && (
                       <div className="flex gap-1">
                         {dots.map((m, idx) => (
@@ -391,7 +427,6 @@ export function CalendarPage() {
                       </div>
                     )}
 
-                    {/* Payday bar */}
                     {isPayday && (
                       <div
                         className="h-[5px] w-[80%] rounded-full"
@@ -399,7 +434,6 @@ export function CalendarPage() {
                       />
                     )}
 
-                    {/* Bold pill for bills */}
                     {hasBills && (
                       <div
                         className="h-[5px] w-[80%] rounded-full"
@@ -407,13 +441,35 @@ export function CalendarPage() {
                       />
                     )}
 
-                    {/* Bold pill for goals */}
-                    {hasGoal && (
-                      <div
-                        className="h-[5px] w-[80%] rounded-full"
-                        style={{ backgroundColor: isSelected ? "rgba(255,255,255,0.7)" : "#7357d8" }}
-                      />
-                    )}
+                    {hasGoal && (() => {
+                      const dayGoals = goalsByDay.get(day);
+                      const goalName = dayGoals?.[0]?.name ?? "Goal";
+                      const goalAchieved = dayGoals?.[0]?.isAchieved ?? false;
+                      return (
+                        <div
+                          draggable={!goalAchieved}
+                          onDragStart={(e) => {
+                            if (dayGoals?.[0]) {
+                              e.dataTransfer.setData("goalId", dayGoals[0].id);
+                              setDraggingGoalId(dayGoals[0].id);
+                            }
+                          }}
+                          onDragEnd={() => setDraggingGoalId(null)}
+                          className={`w-[95%] rounded-md px-1 py-[1px] text-[8px] font-semibold leading-tight truncate text-center ${
+                            !goalAchieved ? "cursor-grab active:cursor-grabbing" : ""
+                          } ${
+                            isSelected
+                              ? "bg-white/20 text-white"
+                              : goalAchieved
+                                ? "bg-[#ecfaf1] text-[#27945c]"
+                                : "bg-[#f0ecff] text-[#7357d8]"
+                          }`}
+                          title={goalName}
+                        >
+                          {goalAchieved ? "✓ " : "🎯 "}{goalName}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </button>
               );
@@ -661,40 +717,78 @@ export function CalendarPage() {
           {selectedGoals.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-medium uppercase tracking-wider text-black/30">Goal target date</p>
-              {selectedGoals.map((goal) => (
-                <div key={goal.id} className={`rounded-[22px] border p-4 ${goal.isAchieved ? "border-[#27945c]/20 bg-[#ecfaf1]/30" : "border-[#7357d8]/15 bg-[#f6f3ff]/30"}`}>
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3">
-                      <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${goal.isAchieved ? "bg-[#ecfaf1] text-[#27945c]" : "bg-[#f6f3ff] text-[#7357d8]"}`}>
-                        {goal.isAchieved ? <Check className="h-4 w-4" /> : <ShoppingBag className="h-3.5 w-3.5" />}
-                      </div>
-                      <div>
-                        <p className={`text-[15px] font-semibold ${goal.isAchieved ? "text-[#27945c] line-through" : "text-black"}`}>{goal.name}</p>
-                        <p className="mt-0.5 text-sm font-medium text-black/50">
-                          Target: {formatCurrency(goal.targetPrice)}
-                        </p>
-                        {goal.projectedBalanceAfter !== null && !goal.isAchieved && (
-                          <p className="mt-1 text-sm text-[#27945c] font-medium">
-                            Balance after purchase: {formatCurrency(goal.projectedBalanceAfter)}
+              {selectedGoals.map((goal) => {
+                const currentDateVal = goal.estimatedDate
+                  ? new Date(goal.estimatedDate).toISOString().split("T")[0]
+                  : "";
+                const minDateVal = goal.minEstimatedDate
+                  ? new Date(goal.minEstimatedDate).toISOString().split("T")[0]
+                  : "";
+                const hasCustomDate = goal.targetDate !== null;
+
+                return (
+                  <div key={goal.id} className={`rounded-[22px] border p-4 ${goal.isAchieved ? "border-[#27945c]/20 bg-[#ecfaf1]/30" : "border-[#7357d8]/15 bg-[#f6f3ff]/30"}`}>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3">
+                        <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${goal.isAchieved ? "bg-[#ecfaf1] text-[#27945c]" : "bg-[#f6f3ff] text-[#7357d8]"}`}>
+                          {goal.isAchieved ? <Check className="h-4 w-4" /> : <ShoppingBag className="h-3.5 w-3.5" />}
+                        </div>
+                        <div className="min-w-0">
+                          <p className={`text-[15px] font-semibold ${goal.isAchieved ? "text-[#27945c] line-through" : "text-black"}`}>{goal.name}</p>
+                          <p className="mt-0.5 text-sm font-medium text-black/50">
+                            Target: {formatCurrency(goal.targetPrice)}
                           </p>
-                        )}
-                        {goal.isAchieved && (
-                          <p className="mt-1 text-sm font-medium text-[#27945c]">Purchased!</p>
-                        )}
+                          {goal.projectedBalanceAfter !== null && !goal.isAchieved && (
+                            <p className="mt-1 text-sm text-[#27945c] font-medium">
+                              Balance after purchase: {formatCurrency(goal.projectedBalanceAfter)}
+                            </p>
+                          )}
+                          {goal.isAchieved && (
+                            <p className="mt-1 text-sm font-medium text-[#27945c]">Purchased!</p>
+                          )}
+                        </div>
                       </div>
+                      {!goal.isAchieved && (
+                        <button
+                          onClick={() => updateGoal.mutate({ id: goal.id, isAchieved: true })}
+                          disabled={updateGoal.isPending}
+                          className="shrink-0 flex items-center gap-1.5 rounded-xl bg-[#7357d8] px-3 py-1.5 text-xs font-medium text-white transition hover:bg-[#6347c8]"
+                        >
+                          <Check className="h-3 w-3" /> Bought it
+                        </button>
+                      )}
                     </div>
-                    {!goal.isAchieved && (
-                      <button
-                        onClick={() => updateGoal.mutate({ id: goal.id, isAchieved: true })}
-                        disabled={updateGoal.isPending}
-                        className="flex items-center gap-1.5 rounded-xl bg-[#7357d8] px-3 py-1.5 text-xs font-medium text-white transition hover:bg-[#6347c8]"
-                      >
-                        <Check className="h-3 w-3" /> Bought it
-                      </button>
+
+                    {!goal.isAchieved && goal.minEstimatedDate && (
+                      <div className="mt-3 space-y-2 border-t border-black/6 pt-3">
+                        <div className="flex items-center gap-2">
+                          <CalendarDays className="h-3.5 w-3.5 text-black/30" />
+                          <p className="text-xs font-medium text-black/40">Adjust target date</p>
+                          <p className="text-[10px] text-black/30 ml-auto">or drag the bar on calendar</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="date"
+                            value={currentDateVal}
+                            min={minDateVal}
+                            onChange={(e) => handleGoalDateChange(goal, e.target.value)}
+                            className="flex-1 rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-1 focus:ring-[#7357d8]/30"
+                          />
+                          {hasCustomDate && (
+                            <button
+                              onClick={() => updateGoal.mutate({ id: goal.id, targetDate: null })}
+                              className="rounded-xl border border-black/8 px-2.5 py-2 text-xs font-medium text-black/50 transition hover:bg-black/[0.03] hover:text-black/70"
+                              title="Reset to earliest possible date"
+                            >
+                              Reset
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -727,6 +821,49 @@ export function CalendarPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* ─── Goal Date Warning Modal ─── */}
+      <AnimatePresence>
+        {goalWarning && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            onClick={() => setGoalWarning(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm rounded-[22px] border border-black/6 bg-white p-6 shadow-xl"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#fff0f2] text-[#d4587b]">
+                  <AlertCircle className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-[15px] font-semibold text-black">Can&apos;t move earlier</p>
+                  <p className="mt-0.5 text-sm text-black/50">Not enough savings by that date</p>
+                </div>
+              </div>
+              <div className="mt-4 rounded-xl bg-[#fff0f2]/50 border border-[#d4587b]/10 p-3">
+                <p className="text-sm text-black/60">
+                  <span className="font-semibold text-black">{goalWarning.goalName}</span> requires more time to save.
+                  The earliest possible date is <span className="font-semibold text-[#7357d8]">{goalWarning.minDate}</span>.
+                </p>
+              </div>
+              <button
+                onClick={() => setGoalWarning(null)}
+                className="mt-4 h-11 w-full rounded-2xl bg-black text-sm font-medium text-white transition hover:bg-black/90"
+              >
+                Got it
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
