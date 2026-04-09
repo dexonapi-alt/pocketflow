@@ -3,8 +3,10 @@ import {
   IsNumber,
   IsOptional,
   IsBoolean,
+  IsDateString,
   Min,
   MaxLength,
+  ValidateIf,
 } from "class-validator";
 
 export class UpdateGoalDto {
@@ -31,4 +33,9 @@ export class UpdateGoalDto {
   @IsOptional()
   @IsBoolean()
   isAchieved?: boolean;
+
+  @IsOptional()
+  @ValidateIf((o) => o.targetDate !== null)
+  @IsDateString()
+  targetDate?: string | null;
 }

@@ -57,9 +57,15 @@ export class GoalsService {
     });
     if (!existing) throw new NotFoundException("Goal not found");
 
+    const { targetDate, ...rest } = dto;
     const goal = await this.prisma.purchaseGoal.update({
       where: { id },
-      data: dto,
+      data: {
+        ...rest,
+        ...(targetDate !== undefined
+          ? { targetDate: targetDate ? new Date(targetDate) : null }
+          : {}),
+      },
     });
 
     if (dto.isAchieved === true && !existing.isAchieved) {
@@ -93,47 +99,89 @@ export class GoalsService {
     return this.prisma.purchaseGoal.delete({ where: { id } });
   }
 
+  private getPaydayAnchor(onboarding: any): { anchor: Date; isBiweekly: boolean } {
+    const now = new Date();
+    const isBiweekly = onboarding.salaryFrequency === "BIWEEKLY";
+
+    let anchor: Date;
+    if (isBiweekly) {
+      if (onboarding.nextPayday) {
+        anchor = new Date(onboarding.nextPayday);
+      } else if (onboarding.paydayDayOfMonth) {
+        anchor = new Date(now.getFullYear(), now.getMonth(), Math.min(onboarding.paydayDayOfMonth, 28));
+      } else {
+        anchor = now;
+      }
+      while (anchor < now) {
+        anchor = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() + 14);
+      }
+    } else {
+      const payday = onboarding.paydayDayOfMonth ?? 1;
+      anchor = new Date(now.getFullYear(), now.getMonth(), Math.min(payday, 28));
+      if (anchor < now) anchor = new Date(now.getFullYear(), now.getMonth() + 1, Math.min(payday, 28));
+    }
+
+    return { anchor, isBiweekly };
+  }
+
+  private countPaychecksToDate(anchor: Date, target: Date, isBiweekly: boolean): number {
+    if (isBiweekly) {
+      const diffMs = target.getTime() - anchor.getTime();
+      return Math.max(1, Math.floor(diffMs / (14 * 86_400_000)) + 1);
+    } else {
+      return Math.max(
+        1,
+        (target.getFullYear() - anchor.getFullYear()) * 12 +
+          (target.getMonth() - anchor.getMonth()) + 1,
+      );
+    }
+  }
+
   private async enrichGoal(userId: string, goal: any) {
-    const { savingsPerPaycheck, onboarding } = await this.getSavingsPerPaycheck(userId);
+    const [{ savingsPerPaycheck, onboarding }, currentBalance] =
+      await Promise.all([
+        this.getSavingsPerPaycheck(userId),
+        this.getCurrentBalance(userId),
+      ]);
     const targetPrice = Number(goal.targetPrice);
 
-    let paychecksToGoal: number | null = null;
+    let minPaychecks: number | null = null;
+    let minEstimatedDate: string | null = null;
     let estimatedDate: string | null = null;
+    let paychecksToGoal: number | null = null;
     let monthlySavingsRate = 0;
 
     if (savingsPerPaycheck > 0 && !goal.isAchieved && onboarding) {
-      paychecksToGoal = Math.ceil(targetPrice / savingsPerPaycheck);
+      const remaining = Math.max(0, targetPrice - currentBalance);
+      minPaychecks = remaining > 0 ? Math.ceil(remaining / savingsPerPaycheck) : 1;
       monthlySavingsRate = onboarding.salaryFrequency === "BIWEEKLY"
         ? savingsPerPaycheck * 26 / 12
         : savingsPerPaycheck;
 
-      // Land the estimated date on an actual payday
-      const isBiweekly = onboarding.salaryFrequency === "BIWEEKLY";
-      const now = new Date();
+      const { anchor, isBiweekly } = this.getPaydayAnchor(onboarding);
 
       if (isBiweekly) {
-        // Anchor from nextPayday or paydayDayOfMonth, step by 14 days
-        let anchor: Date;
-        if (onboarding.nextPayday) {
-          anchor = new Date(onboarding.nextPayday);
-        } else if (onboarding.paydayDayOfMonth) {
-          anchor = new Date(now.getFullYear(), now.getMonth(), Math.min(onboarding.paydayDayOfMonth, 28));
-        } else {
-          anchor = now;
-        }
-
-        // Find the next upcoming payday from today
-        while (anchor < now) {
-          anchor = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() + 14);
-        }
-        // Step forward by the required number of paychecks
-        const target = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() + (paychecksToGoal - 1) * 14);
-        estimatedDate = target.toISOString();
+        const minTarget = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() + (minPaychecks - 1) * 14);
+        minEstimatedDate = minTarget.toISOString();
       } else {
-        // Monthly — land on the payday of the Nth month
         const payday = onboarding.paydayDayOfMonth ?? 1;
-        const target = new Date(now.getFullYear(), now.getMonth() + paychecksToGoal, Math.min(payday, 28));
-        estimatedDate = target.toISOString();
+        const minTarget = new Date(anchor.getFullYear(), anchor.getMonth() + (minPaychecks - 1), Math.min(payday, 28));
+        minEstimatedDate = minTarget.toISOString();
+      }
+
+      if (goal.targetDate) {
+        const custom = new Date(goal.targetDate);
+        const min = new Date(minEstimatedDate);
+        if (custom >= min) {
+          estimatedDate = custom.toISOString();
+          paychecksToGoal = this.countPaychecksToDate(anchor, custom, isBiweekly);
+        } else {
+          estimatedDate = minEstimatedDate;
+          paychecksToGoal = minPaychecks;
+        }
+      } else {
+        estimatedDate = minEstimatedDate;
+        paychecksToGoal = minPaychecks;
       }
     }
 
@@ -154,7 +202,7 @@ export class GoalsService {
     let projectedBalanceAfter: number | null = null;
     if (paychecksToGoal !== null && savingsPerPaycheck > 0) {
       projectedBalanceAfter = Math.round(
-        paychecksToGoal * savingsPerPaycheck - targetPrice,
+        currentBalance + paychecksToGoal * savingsPerPaycheck - targetPrice,
       );
     }
 
@@ -162,9 +210,11 @@ export class GoalsService {
       ...goal,
       targetPrice,
       monthlySavingsRate: Math.round(monthlySavingsRate),
+      savingsPerPaycheck: Math.round(savingsPerPaycheck),
       paychecksToGoal,
       monthsToGoal,
       estimatedDate,
+      minEstimatedDate,
       projectedBalanceAfter,
     };
   }
@@ -225,5 +275,35 @@ export class GoalsService {
     );
 
     return { savingsPerPaycheck, onboarding };
+  }
+
+  private async getCurrentBalance(userId: string): Promise<number> {
+    const now = new Date();
+    const [onboarding, income, expenses, savings] = await Promise.all([
+      this.prisma.onboardingProfile.findUnique({ where: { userId } }),
+      this.prisma.transaction.aggregate({
+        where: { userId, type: "INCOME", transactionDate: { lte: now } },
+        _sum: { amount: true },
+      }),
+      this.prisma.transaction.aggregate({
+        where: { userId, type: "EXPENSE", transactionDate: { lte: now } },
+        _sum: { amount: true },
+      }),
+      this.prisma.transaction.aggregate({
+        where: { userId, type: "SAVE", transactionDate: { lte: now } },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    const startingBalance = onboarding?.startingBalance
+      ? Number(onboarding.startingBalance)
+      : 0;
+
+    return (
+      startingBalance +
+      Number(income._sum.amount ?? 0) -
+      Number(expenses._sum.amount ?? 0) -
+      Number(savings._sum.amount ?? 0)
+    );
   }
 }

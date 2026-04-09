@@ -11,10 +11,13 @@ export interface PurchaseGoal {
   notes: string | null;
   isAchieved: boolean;
   monthlySavingsRate: number;
+  savingsPerPaycheck: number;
   paychecksToGoal: number | null;
   monthsToGoal: number | null;
   estimatedDate: string | null;
+  minEstimatedDate: string | null;
   projectedBalanceAfter: number | null;
+  targetDate: string | null;
   createdAt: string;
 }
 
@@ -49,7 +52,7 @@ export function useUpdateGoal() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: string; name?: string; targetPrice?: number; icon?: string; notes?: string; isAchieved?: boolean }) =>
+    mutationFn: ({ id, ...data }: { id: string; name?: string; targetPrice?: number; icon?: string; notes?: string; isAchieved?: boolean; targetDate?: string | null }) =>
       apiPatch(`/goals/${id}`, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["goals"] });
