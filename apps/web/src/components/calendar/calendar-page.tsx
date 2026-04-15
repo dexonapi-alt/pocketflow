@@ -18,6 +18,7 @@ import { useGoals, useUpdateGoal, type PurchaseGoal } from "@/hooks/use-goals";
 import { useTransactions, useCreateTransaction, useDeleteTransaction } from "@/hooks/use-transactions";
 import { useCategories } from "@/hooks/use-categories";
 import { useOnboarding } from "@/hooks/use-onboarding";
+import { useDashboardSummary } from "@/hooks/use-dashboard";
 import { formatCurrency } from "@/lib/utils";
 
 const card = "rounded-[28px] border border-black/6 bg-white shadow-[0_1px_0_rgba(0,0,0,0.02),0_18px_40px_rgba(0,0,0,0.035)]";
@@ -146,9 +147,10 @@ export function CalendarPage() {
   const [txNote, setTxNote] = useState("");
   const [txCategoryId, setTxCategoryId] = useState("");
 
-  // Goal drag-and-drop + date warning modal
+  // Goal drag-and-drop + date warning modal + bought confirmation
   const [draggingGoalId, setDraggingGoalId] = useState<string | null>(null);
   const [goalWarning, setGoalWarning] = useState<{ goalName: string; minDate: string; balance: number } | null>(null);
+  const [boughtConfirm, setBoughtConfirm] = useState<{ id: string; name: string; price: number } | null>(null);
 
   const eventsQuery = usePlannerMonth(year, month);
   const createEvent = useCreateEvent();
@@ -158,6 +160,7 @@ export function CalendarPage() {
   const updateGoal = useUpdateGoal();
   const categoriesQuery = useCategories();
   const onboardingQuery = useOnboarding();
+  const dashboardQuery = useDashboardSummary();
 
   // Fetch transactions for the displayed month
   const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
@@ -256,6 +259,84 @@ export function CalendarPage() {
   const selectedExpenses = selectedDay ? (expensesByDay.get(selectedDay) ?? []) : [];
   const selectedGoals = selectedDay ? (goalsByDay.get(selectedDay) ?? []) : [];
   const isSelectedPayday = selectedDay ? paydayDays.has(selectedDay) : false;
+
+  const currentMoney = dashboardQuery.data?.data?.currentMoney ?? null;
+
+  const projectedBalance = useMemo(() => {
+    if (currentMoney === null || !selectedDate || !onboarding) return null;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const target = new Date(selectedDate + "T23:59:59");
+
+    if (target <= today) return null;
+
+    let balance = currentMoney;
+
+    // Add paydays between now and target
+    const salary = Number(onboarding.salaryAmount);
+    if (salary > 0) {
+      const isBiweekly = onboarding.salaryFrequency === "BIWEEKLY";
+      let anchor: Date;
+      if (isBiweekly) {
+        if (onboarding.nextPayday) {
+          anchor = new Date(onboarding.nextPayday);
+        } else if (onboarding.paydayDayOfMonth) {
+          anchor = new Date(today.getFullYear(), today.getMonth(), Math.min(onboarding.paydayDayOfMonth, 28));
+        } else {
+          anchor = new Date(today);
+        }
+        while (anchor <= today) anchor = new Date(anchor.getTime() + 14 * 86_400_000);
+        const cursor = new Date(anchor);
+        while (cursor <= target) {
+          balance += salary;
+          cursor.setTime(cursor.getTime() + 14 * 86_400_000);
+        }
+      } else {
+        const payday = onboarding.paydayDayOfMonth ?? 1;
+        const cursor = new Date(today.getFullYear(), today.getMonth(), Math.min(payday, 28));
+        if (cursor <= today) cursor.setMonth(cursor.getMonth() + 1);
+        while (cursor <= target) {
+          balance += salary;
+          cursor.setMonth(cursor.getMonth() + 1);
+        }
+      }
+    }
+
+    // Subtract fixed expenses between now and target
+    for (const fe of fixedExpenses) {
+      const amt = Number(fe.amount);
+      const isFeBiweekly = fe.frequency === "BIWEEKLY";
+      if (isFeBiweekly) {
+        let anchor = new Date(fe.createdAt);
+        if (fe.dueDate) anchor.setDate(fe.dueDate);
+        while (anchor <= today) anchor = new Date(anchor.getTime() + 14 * 86_400_000);
+        const cursor = new Date(anchor);
+        while (cursor <= target) {
+          balance -= amt;
+          cursor.setTime(cursor.getTime() + 14 * 86_400_000);
+        }
+      } else {
+        const day = fe.dueDate ?? new Date(fe.createdAt).getDate();
+        const cursor = new Date(today.getFullYear(), today.getMonth(), Math.min(day, 28));
+        if (cursor <= today) cursor.setMonth(cursor.getMonth() + 1);
+        while (cursor <= target) {
+          balance -= amt;
+          cursor.setMonth(cursor.getMonth() + 1);
+        }
+      }
+    }
+
+    // Add scheduled transactions (future-dated, between today and target)
+    for (const t of transactions) {
+      const txDate = new Date(t.transactionDate);
+      if (txDate > today && txDate <= target) {
+        if (t.type === "INCOME") balance += Number(t.amount);
+        else if (t.type === "EXPENSE") balance -= Number(t.amount);
+        else if (t.type === "SAVE") balance -= Number(t.amount);
+      }
+    }
+
+    return Math.round(balance);
+  }, [currentMoney, selectedDate, onboarding, fixedExpenses, transactions]);
 
   const goMonth = (delta: number) => {
     let m = month + delta;
@@ -515,6 +596,42 @@ export function CalendarPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
+          {/* ─── Projected Balance ─── */}
+          {selectedDate && projectedBalance !== null && (
+            <div className="rounded-[22px] border border-black/6 bg-gradient-to-r from-[#f6f3ff]/60 to-[#eef7ff]/60 p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#f0ecff] text-[#7357d8]">
+                    <Wallet className="h-3.5 w-3.5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-black/40">Projected balance</p>
+                    <p className={`text-lg font-bold ${projectedBalance >= 0 ? "text-[#27945c]" : "text-[#d4587b]"}`}>
+                      {formatCurrency(projectedBalance)}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-[10px] text-black/30 text-right max-w-[120px] leading-tight">
+                  Today&apos;s money + income − expenses by this date
+                </p>
+              </div>
+            </div>
+          )}
+
+          {selectedDate && projectedBalance === null && currentMoney !== null && (
+            <div className="rounded-[22px] border border-black/6 bg-[#fcfcfb] p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#ecfaf1] text-[#27945c]">
+                  <Wallet className="h-3.5 w-3.5" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-black/40">Current balance</p>
+                  <p className="text-lg font-bold text-black">{formatCurrency(currentMoney)}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ─── Add Transaction Form ─── */}
           <AnimatePresence>
             {addMode === "transaction" && selectedDate && (
@@ -631,22 +748,55 @@ export function CalendarPage() {
           )}
 
           {/* ─── Payday on this day ─── */}
-          {isSelectedPayday && onboarding && (
-            <div className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wider text-black/30">Payday</p>
-              <div className="flex items-center gap-3 rounded-[22px] border border-[#27945c]/15 bg-[#ecfaf1]/30 p-4">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#ecfaf1] text-[#27945c]">
-                  <Wallet className="h-3.5 w-3.5" />
-                </div>
-                <div>
-                  <p className="text-[15px] font-medium text-black">Salary</p>
-                  <p className="text-sm text-black/42">
-                    +{formatCurrency(Number(onboarding.salaryAmount))} · {onboarding.salaryFrequency === "BIWEEKLY" ? "Bi-weekly" : "Monthly"}
-                  </p>
+          {isSelectedPayday && onboarding && (() => {
+            const salaryAmt = Number(onboarding.salaryAmount);
+            const alreadyReceived = selectedTx.some(
+              (t) => t.type === "INCOME" && t.note === "Salary" && Math.abs(Number(t.amount) - salaryAmt) < 1,
+            );
+            const paydayDate = new Date(selectedDate + "T12:00:00");
+            const isPast = paydayDate <= new Date();
+            return (
+              <div className="space-y-2">
+                <p className="text-xs font-medium uppercase tracking-wider text-black/30">Payday</p>
+                <div className={`rounded-[22px] border p-4 ${alreadyReceived ? "border-[#27945c]/20 bg-[#ecfaf1]/30" : "border-[#27945c]/15 bg-[#ecfaf1]/30"}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${alreadyReceived ? "bg-[#27945c] text-white" : "bg-[#ecfaf1] text-[#27945c]"}`}>
+                        {alreadyReceived ? <Check className="h-4 w-4" /> : <Wallet className="h-3.5 w-3.5" />}
+                      </div>
+                      <div>
+                        <p className="text-[15px] font-medium text-black">Salary</p>
+                        <p className="text-sm text-black/42">
+                          +{formatCurrency(salaryAmt)} · {onboarding.salaryFrequency === "BIWEEKLY" ? "Bi-weekly" : "Monthly"}
+                        </p>
+                      </div>
+                    </div>
+                    {alreadyReceived ? (
+                      <span className="rounded-xl bg-[#ecfaf1] px-3 py-1.5 text-xs font-medium text-[#27945c]">Received</span>
+                    ) : isPast ? (
+                      <button
+                        onClick={async () => {
+                          await createTx.mutateAsync({
+                            type: "INCOME",
+                            amount: salaryAmt,
+                            note: "Salary",
+                            transactionDate: paydayDate.toISOString(),
+                          });
+                          await txQuery.refetch();
+                        }}
+                        disabled={createTx.isPending}
+                        className="shrink-0 flex items-center gap-1.5 rounded-xl bg-[#27945c] px-3 py-1.5 text-xs font-medium text-white transition hover:bg-[#1f8a50]"
+                      >
+                        <DollarSign className="h-3 w-3" /> Receive
+                      </button>
+                    ) : (
+                      <span className="rounded-xl bg-black/[0.04] px-3 py-1.5 text-xs font-medium text-black/40">Upcoming</span>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* ─── Transactions on this day ─── */}
           {selectedTx.length > 0 && (
@@ -655,8 +805,8 @@ export function CalendarPage() {
               {selectedTx.map((t) => {
                 const isIncome = t.type === "INCOME";
                 const txDate = new Date(t.transactionDate);
-                const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-                const isFuture = txDate > todayStart;
+                const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+                const isFuture = txDate > todayEnd;
                 return (
                   <div key={t.id} className={`flex items-center justify-between rounded-[22px] border p-4 ${isFuture ? "border-dashed border-black/10 bg-black/[0.015]" : "border-black/6 bg-[#fcfcfb]"}`}>
                     <div className="flex items-center gap-3">
@@ -750,7 +900,7 @@ export function CalendarPage() {
                       </div>
                       {!goal.isAchieved && (
                         <button
-                          onClick={() => updateGoal.mutate({ id: goal.id, isAchieved: true })}
+                          onClick={() => setBoughtConfirm({ id: goal.id, name: goal.name, price: goal.targetPrice })}
                           disabled={updateGoal.isPending}
                           className="shrink-0 flex items-center gap-1.5 rounded-xl bg-[#7357d8] px-3 py-1.5 text-xs font-medium text-white transition hover:bg-[#6347c8]"
                         >
@@ -821,6 +971,76 @@ export function CalendarPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* ─── Bought Confirmation Modal ─── */}
+      <AnimatePresence>
+        {boughtConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            onClick={() => setBoughtConfirm(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm rounded-[22px] border border-black/6 bg-white p-6 shadow-xl"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#f0ecff] text-[#7357d8]">
+                  <ShoppingBag className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-[15px] font-semibold text-black">Mark as purchased?</p>
+                  <p className="mt-0.5 text-sm text-black/50">
+                    {boughtConfirm.name} · {formatCurrency(boughtConfirm.price)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 space-y-2.5">
+                <button
+                  onClick={async () => {
+                    const { id, name, price } = boughtConfirm;
+                    await createTx.mutateAsync({
+                      type: "EXPENSE",
+                      amount: price,
+                      note: `Purchased: ${name}`,
+                      transactionDate: new Date().toISOString(),
+                    });
+                    updateGoal.mutate({ id, isAchieved: true });
+                    await txQuery.refetch();
+                    setBoughtConfirm(null);
+                  }}
+                  disabled={createTx.isPending || updateGoal.isPending}
+                  className="h-11 w-full rounded-2xl bg-[#7357d8] text-sm font-medium text-white transition hover:bg-[#6347c8]"
+                >
+                  Yes, deduct {formatCurrency(boughtConfirm.price)} from my balance
+                </button>
+                <button
+                  onClick={() => {
+                    updateGoal.mutate({ id: boughtConfirm.id, isAchieved: true });
+                    setBoughtConfirm(null);
+                  }}
+                  disabled={updateGoal.isPending}
+                  className="h-11 w-full rounded-2xl border border-black/8 text-sm font-medium text-black/60 transition hover:bg-black/[0.03]"
+                >
+                  Don&apos;t deduct, just mark as bought
+                </button>
+                <button
+                  onClick={() => setBoughtConfirm(null)}
+                  className="h-9 w-full text-sm text-black/35 transition hover:text-black/50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ─── Goal Date Warning Modal ─── */}
       <AnimatePresence>
