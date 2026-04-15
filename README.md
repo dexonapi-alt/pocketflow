@@ -1,10 +1,11 @@
 <div align="center">
 
-# 💸 PocketFlow
+# PocketFlow
 
-**Your salary hits. Bills come out. Where did the rest go?**
+**A salary-based personal finance app.**
 
-PocketFlow is a personal finance app built for people who earn a paycheck and want to finally *see* where their money goes — and where it's headed.
+Track your money. See your future.
+Buy the things you want — when you're actually ready.
 
 [![Next.js](https://img.shields.io/badge/Next.js_15-black?style=flat-square&logo=next.js)](https://nextjs.org/)
 [![NestJS](https://img.shields.io/badge/NestJS-E0234E?style=flat-square&logo=nestjs&logoColor=white)](https://nestjs.com/)
@@ -17,97 +18,689 @@ PocketFlow is a personal finance app built for people who earn a paycheck and wa
 
 ---
 
-## 🧠 The idea
+I got my first real paycheck when I was starting out as a developer.
+It wasn't a lot.
+Enough to cover rent, food, the internet bill, and a little extra.
+I remember looking at my bank account the day the salary came in and
+thinking, "Okay, this is a good start. I'll save some of this."
 
-I built this because every budgeting app I tried either felt too corporate or assumed I had a finance degree. I just wanted something that answers three questions:
+Two weeks later, the money was gone.
 
-1. **How much money do I actually have right now?**
-2. **When can I afford to buy that thing I want?**
-3. **Am I okay this month, or should I chill on spending?**
+Not because I was reckless.
+I paid my bills. I bought groceries. I ate out a couple of times.
+I grabbed coffee before work. Small stuff. Normal stuff.
+But when I checked my account again before the next payday,
+there was barely anything left.
+And I couldn't tell you exactly where it all went.
 
-PocketFlow does exactly that — and it has an AI that talks to you like a friend who happens to be good with money.
+That kept happening.
+Every paycheck, every month.
+Salary comes in, salary goes out.
+And at the end of each cycle, I'd sit there wondering the same thing:
+*where did the rest go?*
 
 ---
 
-## ✨ What it does
+I started calling them ghost expenses.
 
-| Feature | Description |
+Not because they were scary — but because they were invisible.
+I never *decided* to spend that much. It just happened.
+A grab here, a subscription there, a "treat yourself" moment that
+somehow became a weekly habit.
+None of it felt like a lot in the moment.
+But added up over a month?
+It was eating half my paycheck and I didn't even notice.
+
+The frustrating part is that I *wanted* to save.
+I had things I wanted to buy.
+A better laptop for work. Maybe upgrade my setup. Eventually a car.
+But every time I tried to figure out when I could afford something,
+I'd do mental math that never added up.
+
+"If I save this much per month...
+minus bills...
+minus food...
+I think I can buy it in... six months? Maybe eight?"
+
+It was always a guess.
+And the guess was always wrong because I never accounted for all
+the small stuff that quietly drained my account.
+
+---
+
+So I did what most people do.
+I made a spreadsheet.
+
+It was a Google Sheet with columns for income, expenses, savings,
+and a running balance.
+Color-coded cells.
+Formulas that auto-calculated monthly totals.
+I was proud of it for about a week.
+
+Then I forgot to log a few transactions.
+The balance was off.
+I tried to fix the formulas but broke something else.
+After a while I just stopped opening it.
+
+The spreadsheet joined the graveyard of abandoned productivity systems —
+right next to the habit tracker I used for three days
+and the workout plan I printed but never followed.
+
+---
+
+After the spreadsheet died, I tried some budgeting apps.
+There are dozens of them. I downloaded a few.
+
+Some wanted me to connect my bank account.
+I wasn't comfortable with that.
+
+Others had so many features and settings that the onboarding alone
+took 20 minutes. Categories, sub-categories, budget rules,
+envelope systems, investment tracking —
+I didn't need all that.
+I just wanted to know how much money I had
+and when I could buy something I wanted.
+
+The one thing that really bothered me about all of them was that
+they were backward-looking.
+
+They were great at telling me what I *already spent*.
+Charts showing last month's breakdown by category.
+Pie graphs of dining vs groceries vs transport.
+Cool, I guess. But I already spent that money.
+
+What I actually needed was someone to tell me what's *ahead*.
+
+What will my balance be next Friday?
+Can I afford to buy something next month without messing up my bills?
+If I add a new recurring expense, how does that change things three
+months from now?
+
+None of the apps I tried could answer that.
+Not clearly, anyway.
+
+So eventually I just built my own.
+
+---
+
+That's what PocketFlow is.
+
+It's not trying to be a full financial platform.
+It's not for investors or accountants or people with complex portfolios.
+It's for someone like me — a person who earns a salary, has some bills,
+sometimes buys things they shouldn't, and just wants to understand
+where their money is going and when they can afford
+the things they want.
+
+The whole app is built around a few things I kept wishing
+other apps would do.
+
+---
+
+The first thing is just showing me my actual money.
+
+Not a graph. Not a summary of last month. Just a number.
+How much do I have right now, after everything?
+After every expense that already happened.
+After every bill that was already deducted.
+After every savings transfer.
+The real number.
+
+PocketFlow gives you that the moment you open the dashboard.
+
+Your current balance is right there at the top.
+Below it, you can see how much you've spent today,
+how much you've spent this pay cycle,
+and whether you're spending more or less than last cycle.
+
+There's also a spending chart that breaks down
+your daily expenses visually.
+And an AI-generated weekly tip — a short sentence or two
+based on how you've actually been spending.
+Not generic advice. Something specific to your numbers.
+
+If you have an AI key configured, the dashboard also shows
+a savings forecast.
+It projects how much money you'll have in 1 month,
+3 months, 6 months, and a year from now.
+Three scenarios: optimistic, realistic, and conservative.
+The realistic number is always calculated deterministically
+from your actual salary and expenses.
+No AI guessing on that one.
+
+---
+
+The second thing — and the one that made me want to build
+this whole app — is the calendar.
+
+I wanted to see my money over time.
+Not as a line graph. On an actual calendar.
+Where I can see the days, the weeks, the months —
+and know what's happening with my money on each one.
+
+Paydays show up as green bars.
+Bills appear as pink bars on the days they're due —
+and they repeat correctly whether they're monthly or bi-weekly.
+If I scheduled a one-time expense for next week, it shows up as a dot
+on that day.
+
+Purchase goals float as little purple bubbles at the top of
+their target date, showing the item name.
+You can see at a glance when your next bill is due,
+when your next paycheck comes in,
+and when you'll be able to afford that thing you've been eyeing.
+
+But the real magic happens when you click on a date.
+
+Click any future date and the detail panel opens on the right.
+At the top, there's a projected balance card.
+It takes your current money — what you actually have right now —
+and adds up every paycheck between now and that date,
+subtracts every bill, every fixed expense,
+every scheduled transaction.
+And it gives you a number.
+
+That number is what you'll have on that day.
+
+If it's green, you're good.
+If it's red, you need to slow down.
+
+It completely changed how I think about spending.
+Before, I'd buy something and hope for the best.
+Now I click on a date two weeks from now and see
+if I'll still be okay after the purchase.
+If the number turns red, I know to wait.
+
+Click on today or a past date and it just shows
+your current balance. No projections.
+Just what you actually have. Simple.
+
+You can also add expenses or income to any date
+directly from the calendar.
+Pick the type, enter the amount, add a note,
+select a category from the list, and it saves instantly.
+If you add something to a future date,
+it's marked as "Scheduled" and won't affect your current
+balance until that date arrives.
+
+I spent a lot of time getting that right because early versions
+had a bug where scheduling an expense for next week
+would immediately deduct it from the balance.
+Which defeated the entire purpose.
+
+On payday, there's a green "Receive" button
+right on the calendar day.
+Tap it and your salary is logged as an income transaction.
+If you already received it, the button goes away
+and shows a "Received" badge instead.
+Future paydays show "Upcoming."
+No duplicate entries.
+No confusion about whether you already logged it.
+
+It sounds trivial but before this I'd forget to log my salary
+half the time, which threw off my balance calculation.
+Having a dedicated button for it on the exact day
+made it effortless.
+
+---
+
+The third thing — and the one I'm probably most proud of —
+is purchase goals.
+
+You add something you want to buy.
+A laptop. A phone. A trip somewhere. Whatever.
+You put in the name and the price.
+
+PocketFlow calculates the exact payday when you'll have enough
+money to buy it.
+Based on your salary. Your fixed expenses.
+Your actual spending patterns.
+Not a rough estimate.
+It counts your real paychecks, subtracts your real expenses,
+and lands on an actual payday as the target date.
+
+And it doesn't just tell you the date.
+It shows you the goal right on the calendar —
+a little purple bubble sitting on the target date
+with the item name.
+
+You can grab it and drag it to a later date
+if you want more breathing room.
+When you do, it recalculates and shows you
+the balance you'd have after buying it at the new date.
+
+If you try to drag it to a date that's too soon —
+where you'd end up with zero or negative money —
+it blocks you.
+A modal pops up telling you the earliest possible date
+and why you can't go earlier.
+No surprise overdrafts.
+
+When the day finally comes and you can afford it,
+you hit a button that says "Bought it."
+
+The app doesn't just mark it as done though.
+A confirmation modal appears with two options:
+
+**"Yes, deduct from my balance"** — creates an expense transaction
+for the full price automatically.
+Your balance updates. Your calendar updates.
+Everything stays in sync.
+
+**"Don't deduct, just mark as bought"** — for when you
+already recorded the expense separately,
+or paid from a different account.
+It just marks the goal as achieved.
+
+Either way, if you linked the goal to a task,
+the task updates to "Bought it!" automatically.
+
+I built this whole feature because I remember wanting a MacBook
+and having no idea when I could actually buy one.
+I'd check my balance, do rough math in my head,
+get a number that was probably wrong, and keep waiting.
+With purchase goals, I just add the item and forget about it.
+The app tells me when. And it's been right every time.
+
+---
+
+There's also an AI built into the app.
+
+But not the kind that gives you fortune-cookie advice like
+"try to save more" or "consider reducing unnecessary expenses."
+That's useless.
+
+The AI in PocketFlow knows everything about your finances.
+
+Your actual balance right now.
+Your salary and how often you get paid.
+Your fixed expenses — each one, with the name, amount, and frequency.
+Any transactions you've scheduled for the future.
+Your purchase goals and when they're projected to complete.
+Your estimated monthly savings.
+Your savings projections for the next 12 months.
+Even what your emergency fund should be
+(it calculates 3 months of your expenses as a benchmark).
+
+So when you ask it something like "can I afford a 400k car?"
+it doesn't give you a generic answer.
+
+It tells you what you have right now.
+How much you save per month.
+How long it would take.
+What your emergency fund should be
+and whether you'd still have one after buying it.
+Whether it would push back your existing purchase goals.
+Real numbers. Your numbers.
+
+I wanted the AI to feel like talking to a friend
+who happens to know your bank account.
+Someone who would tell you
+"honestly, you can't afford that yet —
+but you could in 14 months if you keep this up"
+instead of a robot that says
+"based on general financial guidelines,
+it is recommended to..."
+
+When you have a conversation with it, it remembers context.
+It's not a one-off question-answer thing.
+You can ask follow-up questions and it keeps track.
+Ask "can I afford X?" then follow up with
+"what if I wait two more months?" and it understands
+what you're referring to.
+
+---
+
+The savings forecast deserves its own mention because of
+a specific decision I made that I think matters.
+
+When PocketFlow calculates your estimated monthly savings
+and projects it forward, it has to decide what counts
+as "normal spending."
+
+Here's the problem: if you've only been using the app for
+three days and you bought a new phone during that time,
+the app would think you buy a phone every three days.
+Obviously that's wrong.
+
+So I built in a threshold.
+The app waits until you have at least 60 days of
+transaction history before it starts incorporating your
+variable spending into the savings forecast.
+
+Until then, it only uses your salary and fixed expenses
+for the projection.
+That way, one-time purchases don't make the forecast
+think you're broke.
+
+After 60 days, when there's enough data to calculate
+a meaningful monthly average, it factors that in too.
+The longer you use the app, the more accurate it gets.
+
+The same logic applies to purchase goal calculations.
+If you've been tracking for less than 60 days,
+the goal timeline is based on salary minus fixed expenses.
+No noise from one-time purchases.
+Clean numbers.
+
+---
+
+The task system might seem unrelated to money at first,
+but it ties in more than you'd think.
+
+When you create a purchase goal, you can optionally add it
+as a task. That task isn't just a regular to-do item.
+It has a three-step progress tracker:
+
+**Planned** — you've set the goal, the app is calculating.
+
+**Saving for it** — you're in the process, money is building up.
+
+**Bought it** — you did it. The money was spent. The goal is complete.
+
+You click through the steps as you go.
+Each step has its own icon and color.
+It's a small thing, but there's something satisfying about
+watching a goal go from "Planned" to "Bought it."
+It turns saving money into something tangible
+instead of just watching a number go up.
+
+Regular tasks work normally too.
+Priorities, due dates, descriptions.
+But the goal tasks feel different.
+They feel like you're working toward something.
+
+---
+
+I want to be honest about who this is for and who it isn't.
+
+If you have a complex financial life — investments,
+multiple income streams, business expenses,
+international accounts — this probably isn't the right tool.
+There are bigger, more comprehensive platforms for that.
+
+But if you're someone who earns a paycheck.
+Whether it's your first job or your fifth.
+Whether you get paid monthly or every two weeks.
+And you just want to stop wondering where your money went.
+
+This might help.
+
+It helped me.
+I went from having no idea where my salary disappeared every month
+to being able to tell you exactly what my balance will be
+on any given day for the next three months.
+
+And I finally bought that MacBook.
+On the exact date the app predicted.
+With money left over.
+
+That's all PocketFlow does, really.
+It gives you clarity about your money.
+And sometimes, that's all you need to start making better decisions.
+
+Not because an app told you to.
+But because you could finally see clearly enough
+to decide for yourself.
+
+And honestly? The biggest change wasn't even a feature.
+It was the feeling of opening the app and *knowing*.
+Knowing exactly where I stand.
+Knowing when I'll have enough.
+Knowing that the money I'm spending right now
+won't screw me over next month.
+
+Before PocketFlow, money felt like something that
+happened *to* me.
+Now it feels like something I understand.
+
+That's a small shift.
+But it changes everything.
+
+---
+
+If any of that resonated with you —
+if you've ever looked at your bank account a week before payday
+and wondered how it got that low —
+maybe give it a try.
+
+The setup takes about five minutes.
+You don't need to connect any bank accounts.
+You don't need to import anything.
+Just your salary, your bills, and five minutes.
+
+Here's everything you need.
+
+---
+
+## Getting started
+
+### What you need installed
+
+| Tool | Version | Where to get it |
+|---|---|---|
+| **Node.js** | 20 or higher | [nodejs.org](https://nodejs.org) |
+| **pnpm** | Latest | `npm install -g pnpm` |
+| **PostgreSQL** | 14 or higher | [postgresql.org](https://www.postgresql.org/download/) or use Docker |
+
+If you prefer Docker for the database, this single command
+sets everything up:
+
+```bash
+docker run -d --name pocketflow-db \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=pocketflow \
+  -p 5432:5432 postgres:16
+```
+
+---
+
+### Step by step
+
+**1. Clone the repo and install dependencies**
+
+```bash
+git clone https://github.com/dexonapi-alt/pocketflow.git
+cd pocketflow
+pnpm install
+```
+
+This installs everything for both the frontend and backend.
+It's a monorepo, so one install handles it all.
+
+**2. Create your environment file**
+
+```bash
+cp .env.example apps/api/.env
+```
+
+Open `apps/api/.env` and fill in your values:
+
+```env
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/pocketflow
+JWT_ACCESS_SECRET=any-random-string-here
+JWT_REFRESH_SECRET=another-random-string
+OPENROUTER_API_KEY=your-openrouter-key
+```
+
+A few notes:
+
+**DATABASE_URL** —
+If you used the Docker command above, the default value works as-is.
+If you have Postgres installed locally,
+adjust the username, password, and database name to match.
+
+**JWT secrets** —
+These can be any random text.
+They're used to sign login tokens.
+Doesn't matter what they are,
+just make them long and unique.
+
+**OPENROUTER_API_KEY** —
+This powers all the AI features:
+chat, savings forecast, weekly pulse, and insights.
+You can get a free key at [openrouter.ai](https://openrouter.ai).
+
+The app works fine without this key.
+You'll have the full dashboard, transactions, calendar,
+goals, and tasks.
+You just won't get AI chat, AI tips, or the weekly pulse.
+Everything else works normally.
+
+**3. Set up the database**
+
+```bash
+pnpm db:migrate
+```
+
+This creates all the tables in your database.
+Default spending categories are seeded automatically
+on the first run — 10 expense categories and 5 income categories.
+
+If you want to peek at the database visually:
+
+```bash
+pnpm db:studio
+```
+
+This opens Prisma Studio in your browser —
+a visual interface where you can browse and edit data directly.
+
+**4. Start the app**
+
+```bash
+pnpm dev
+```
+
+This boots both the frontend and the backend at the same time:
+
+| Service | URL |
 |---|---|
-| 📊 **Dashboard** | Real-time balance, spending chart, cycle health, and an AI savings forecast (optimistic, realistic, conservative) |
-| 💰 **Transactions** | Log expenses, income, and savings. Search, filter, categorize. Schedule future transactions |
-| 📅 **Calendar** | Visual overview of paydays, bills, goals, and scheduled transactions. Click any future date to see your projected balance |
-| 🎯 **Purchase Goals** | Add something you want (laptop, phone, etc.) and PocketFlow tells you exactly when you can buy it based on your salary and expenses |
-| ✅ **Tasks** | Financial to-dos with a savings journey tracker — *Planned → Saving for it → Bought it!* |
-| 🤖 **AI Chat** | Ask anything about your finances. The AI knows your actual balance, bills, goals, and projections — no generic advice |
-| 💵 **Salary Receive** | Payday shows up in the calendar. One tap to log your paycheck as income |
-| 🔔 **Weekly Pulse** | A quick AI-generated tip each week based on your real spending patterns |
+| Frontend | [localhost:3000](http://localhost:3000) |
+| API | [localhost:4000](http://localhost:4000) |
 
 ---
 
-## 🖥️ Tech stack
+## Using the app
+
+1. Open [localhost:3000](http://localhost:3000) in your browser
+2. Create an account with your email and password
+3. The onboarding wizard appears and asks a few questions:
+   - What's your salary?
+   - How often do you get paid? (monthly or bi-weekly)
+   - When was your last payday?
+   - How much money do you have right now?
+4. After onboarding, the dashboard loads immediately
+
+From there, you can explore everything:
+
+- Add expenses and income in **Transactions** —
+  search, filter, and categorize your history
+
+- Open the **Calendar** to see your month visually —
+  paydays, bills, goals, and your projected balance on any date
+
+- Go to **More** (settings) and add your fixed expenses —
+  rent, subscriptions, utilities, whatever recurs monthly or bi-weekly
+
+- Create a **Purchase Goal** for something you want —
+  the app calculates when you can afford it
+
+- Open **AI Chat** and ask anything about your finances —
+  it knows your actual balance, bills, goals, and projections
+
+- Track your savings journey in **Tasks** —
+  Planned, Saving for it, Bought it
+
+---
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `pnpm dev` | Start frontend and backend together |
+| `pnpm build` | Build everything for production |
+| `pnpm db:migrate` | Run database migrations |
+| `pnpm db:generate` | Regenerate Prisma client after schema changes |
+| `pnpm db:studio` | Open Prisma Studio (visual database browser) |
+| `pnpm --filter @plannerflow/api dev` | Start only the backend |
+| `pnpm --filter @plannerflow/web dev` | Start only the frontend |
+
+---
+
+## Tech stack
 
 ```
-Frontend        Next.js 15 · React 19 · TypeScript · Tailwind CSS v4 · Framer Motion · TanStack Query
-Backend         NestJS · Fastify · Prisma ORM · PostgreSQL · JWT Authentication
-AI              OpenRouter (GPT-4o-mini default, configurable)
+Frontend        Next.js 15 · React 19 · TypeScript · Tailwind CSS v4
+                Framer Motion · TanStack Query · shadcn/ui components
+
+Backend         NestJS · Fastify · Prisma ORM · PostgreSQL
+                JWT Authentication · bcryptjs
+
+AI              OpenRouter (GPT-4o-mini default, swappable to any model)
+
 Tooling         pnpm workspaces · Turborepo
 ```
 
 ---
 
-## 📁 Project structure
+## Project structure
 
-This is a **monorepo** — frontend and backend live side by side.
+This is a monorepo.
+Frontend and backend live in the same repository,
+managed by pnpm workspaces and Turborepo.
 
 ```
 apps/
-├── web/          → Next.js frontend (what you see)
-└── api/          → NestJS backend (handles everything)
+├── web/          Next.js frontend (what you see in the browser)
+└── api/          NestJS backend (handles data, auth, AI)
 
 packages/
-├── types/        → Shared TypeScript types
-└── config/       → Shared configs
+├── types/        Shared TypeScript types
+└── config/       Shared configurations (tsconfig, etc.)
 ```
 
 <details>
-<summary>🔍 Detailed structure</summary>
+<summary>Full directory breakdown</summary>
 
 ```
 apps/api/src/
-├── auth/             Sign in, sign up, JWT tokens
+├── auth/             Sign in, sign up, JWT token management
 ├── users/            User profiles
 ├── onboarding/       Salary setup wizard
-├── transactions/     Income, expenses, savings
-├── categories/       Spending categories (auto-seeded)
+├── transactions/     Income, expenses, savings transfers
+├── categories/       Spending categories (auto-seeded on startup)
 ├── budgets/          Monthly budgets
 ├── fixed-expenses/   Recurring bills (monthly or bi-weekly)
-├── goals/            Purchase goal tracking with timeline
-├── dashboard/        Balance, charts, cycle stats
+├── goals/            Purchase goal tracking with paycheck-based timeline
+├── dashboard/        Balance calculation, charts, cycle stats
 ├── ai/               Chat, insights, forecast, weekly pulse
 ├── planner/          Calendar events
 ├── user-tasks/       Task manager with savings journey
 ├── subscriptions/    Plan management
 ├── notifications/    Alerts and reminders
-├── prisma/           Database connection
-└── common/           Guards, filters, decorators
+├── prisma/           Database connection and service
+└── common/           Shared guards, filters, decorators
+```
 
+```
 apps/web/src/
-├── app/              Next.js app router
+├── app/              Next.js app router pages
 ├── components/
-│   ├── landing/      Landing page
-│   ├── auth/         Sign in / Sign up
-│   ├── onboarding/   Salary setup wizard
-│   ├── dashboard/    Dashboard cards and charts
-│   ├── transactions/ Transaction list and forms
-│   ├── calendar/     Calendar with projected balance
-│   ├── task-manager/ Tasks with savings journey UI
-│   ├── chatbot/      AI chat interface
-│   ├── subscription/ Plan selection
-│   ├── more/         Settings, goals, fixed expenses
-│   ├── layout/       Sidebar, header, shell
-│   ├── shared/       Reusable components
-│   └── ui/           Design system (button, card, etc.)
-├── hooks/            API data fetching (TanStack Query)
+│   ├── landing/      Landing page sections
+│   ├── auth/         Sign in and sign up forms
+│   ├── onboarding/   Salary setup wizard UI
+│   ├── dashboard/    Dashboard cards, spending chart, forecast
+│   ├── transactions/ Transaction list, forms, filters
+│   ├── calendar/     Calendar grid, projected balance, goal drag-and-drop
+│   ├── task-manager/ Tasks with savings journey progress tracker
+│   ├── chatbot/      AI chat interface with conversation history
+│   ├── subscription/ Plan selection and comparison
+│   ├── more/         Settings, goals, fixed expense management
+│   ├── layout/       Sidebar, header, app shell, floating toast
+│   ├── shared/       Reusable shared components
+│   └── ui/           Design system (button, card, input, badge, etc.)
+├── hooks/            API data fetching with TanStack Query
 ├── lib/              Utilities, API client, auth helpers
 ├── providers/        React context providers
 └── styles/           Global CSS and theme
@@ -117,123 +710,107 @@ apps/web/src/
 
 ---
 
-## 🚀 Getting started
+## Plans
 
-### Prerequisites
-
-| Tool | Version | Install |
-|---|---|---|
-| **Node.js** | 20+ | [nodejs.org](https://nodejs.org) |
-| **pnpm** | Latest | `npm install -g pnpm` |
-| **PostgreSQL** | 14+ | [postgresql.org](https://www.postgresql.org/download/) or Docker ↓ |
-
-**Quick Postgres with Docker:**
-
-```bash
-docker run -d --name pocketflow-db \
-  -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=pocketflow \
-  -p 5432:5432 postgres:16
-```
-
-### Setup
-
-**1.** Clone and install
-
-```bash
-git clone https://github.com/dexonapi-alt/pocketflow.git
-cd pocketflow
-pnpm install
-```
-
-**2.** Configure environment
-
-```bash
-cp .env.example apps/api/.env
-```
-
-Open `apps/api/.env` and fill in:
-
-```env
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/pocketflow
-JWT_ACCESS_SECRET=any-random-string
-JWT_REFRESH_SECRET=another-random-string
-OPENROUTER_API_KEY=your-key-from-openrouter
-```
-
-> 💡 **AI is optional.** The app works fine without an OpenRouter key — you just won't get AI chat, forecasts, or weekly tips. Get a free key at [openrouter.ai](https://openrouter.ai).
-
-**3.** Set up the database
-
-```bash
-pnpm db:migrate
-```
-
-**4.** Run it
-
-```bash
-pnpm dev
-```
-
-| Service | URL |
-|---|---|
-| 🌐 Frontend | [localhost:3000](http://localhost:3000) |
-| ⚡ API | [localhost:4000](http://localhost:4000) |
-
----
-
-## 🎮 Using the app
-
-1. Open [localhost:3000](http://localhost:3000) and create an account
-2. The **onboarding wizard** asks for your salary, pay frequency, last payday, and current balance
-3. That's it — your **dashboard** is ready with your balance, spending chart, and AI tips
-4. From there, explore:
-   - Add expenses and income in **Transactions**
-   - View your month in the **Calendar** — paydays, bills, and projected balance on any date
-   - Set a **Purchase Goal** and watch PocketFlow calculate when you can afford it
-   - Ask the **AI Chat** anything — it knows your real numbers
-
----
-
-## 📋 Available commands
-
-| Command | What it does |
-|---|---|
-| `pnpm dev` | Start frontend + backend |
-| `pnpm build` | Build for production |
-| `pnpm db:migrate` | Run database migrations |
-| `pnpm db:generate` | Regenerate Prisma client |
-| `pnpm db:studio` | Open Prisma Studio (visual DB browser) |
-| `pnpm --filter @plannerflow/api dev` | Start only the backend |
-| `pnpm --filter @plannerflow/web dev` | Start only the frontend |
-
----
-
-## 💳 Subscription tiers
+The app has a subscription system built in.
+Here's how the tiers work:
 
 | Plan | Price | Transactions | Tasks | AI |
 |---|---|---|---|---|
-| **Free** | ₱0 | 10/month | 2 | Weekly pulse only |
-| **Lite** | ₱99/mo | 50/month | 10 | 5 messages/day |
-| **Plus** | ₱249/mo | Unlimited | Unlimited | 50 messages/day + forecast |
-| **Pro+** | ₱499/mo | Unlimited | Unlimited | Unlimited + priority |
+| Free | ₱0 | 10/month | 2 | Weekly pulse only |
+| Lite | ₱99/mo | 50/month | 10 | 5 messages/day |
+| Plus | ₱249/mo | Unlimited | Unlimited | 50 messages/day + forecast |
+| Pro+ | ₱499/mo | Unlimited | Unlimited | Unlimited + priority support |
 
 ---
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
-| Problem | Fix |
-|---|---|
-| **Can't connect to database** | Make sure PostgreSQL is running. Check `DATABASE_URL` in `apps/api/.env` |
-| **AI features not working** | Set `OPENROUTER_API_KEY` in `.env`. The app works without it, but AI features show fallback data |
-| **`bcrypt` module error** | Run `pnpm --filter @plannerflow/api remove bcrypt && pnpm --filter @plannerflow/api add bcryptjs` |
-| **Port already in use** | Kill whatever's on port 3000 or 4000, then retry |
-| **Onboarding keeps showing** | Clear browser localStorage (F12 → Application → Local Storage → Clear) |
+**Can't connect to database**
+
+Make sure PostgreSQL is running.
+If you're using Docker, check that the container is up:
+
+```bash
+docker ps
+```
+
+Verify that `DATABASE_URL` in `apps/api/.env`
+matches your actual database credentials.
+
+**AI features not working**
+
+The AI requires an OpenRouter API key.
+Set `OPENROUTER_API_KEY` in `apps/api/.env`.
+Without it, the app still works fine —
+AI chat, weekly pulse, and forecasts will just show
+fallback messages or empty states.
+
+**bcrypt module error**
+
+The project uses bcryptjs (pure JavaScript, no native compilation).
+If you see errors about bcrypt, run:
+
+```bash
+pnpm --filter @plannerflow/api remove bcrypt
+pnpm --filter @plannerflow/api add bcryptjs
+```
+
+**Port already in use**
+
+The API runs on port 4000 and the frontend on port 3000.
+If something else is using those ports,
+find and stop the other process first.
+
+On Windows:
+```bash
+netstat -ano | findstr :4000
+taskkill /PID <pid> /F
+```
+
+On Mac/Linux:
+```bash
+lsof -i :4000
+kill -9 <pid>
+```
+
+**Onboarding wizard keeps appearing**
+
+Clear your browser's localStorage.
+Open DevTools (F12), go to Application,
+then Local Storage, and clear everything
+for localhost:3000. Sign in again.
+
+**Prisma migration fails with EPERM**
+
+This usually means the dev server is locking the database files.
+Stop the dev server first, then run the migration:
+
+```bash
+# Stop the running dev server (Ctrl+C)
+pnpm db:migrate
+# Then restart
+pnpm dev
+```
+
+---
+
+If you read this far — thanks.
+
+I hope it's useful to you,
+or at the very least,
+I hope it makes you think a little differently
+about where your money goes.
+
+Because once you see it clearly, you can't unsee it.
+
+And that's kind of the whole point.
 
 ---
 
 <div align="center">
 
-Built with late nights and too much coffee ☕
+*Built with late nights, cold coffee, and the recurring question:
+"wait, where did my money go?"*
 
 </div>
