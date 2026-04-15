@@ -1,11 +1,11 @@
 <div align="center">
 
-# PocketFlow
+# 💸 PocketFlow
 
-**Salary-based personal finance for people who want clarity, not guesswork.**
+**Know what you can spend — before you spend it.**
 
-Track your balance, project future cash flow, and see when a purchase is
-actually affordable.
+A salary-based personal finance app that tracks your balance, projects future cash flow,
+and tells you when a purchase is actually affordable.
 
 [![Next.js](https://img.shields.io/badge/Next.js_15-black?style=flat-square&logo=next.js)](https://nextjs.org/)
 [![NestJS](https://img.shields.io/badge/NestJS-E0234E?style=flat-square&logo=nestjs&logoColor=white)](https://nestjs.com/)
@@ -16,35 +16,41 @@ actually affordable.
 
 </div>
 
-<!-- TODO: add a screenshot or GIF here -->
+---
 
-## Features
+Most budgeting apps are great at telling you where your money *went*. PocketFlow is built
+for the question you actually ask mid-week: **"Can I buy this right now, or should I wait
+until payday?"** It connects your salary schedule, recurring bills, and real spending into
+one timeline — so you stop guessing and start knowing.
 
-- **Dashboard** — current balance, daily spend, pay-cycle stats, and a spending chart
-- **Calendar** — visual timeline of paydays, bills, transactions, and projected balances for any future date
-- **Purchase Goals** — calculates the earliest realistic payday you can afford a purchase, shown on the calendar
-- **AI Chat & Insights** — ask questions about affordability and timing using your real financial data (requires an OpenRouter key)
-- **Savings Forecast** — optimistic, realistic, and conservative projections
-- **Tasks** — general to-dos and goal-linked savings journeys (`Planned → Saving for it → Bought it`)
-- **Subscriptions** — tiered plans with transaction, task, and AI limits
+## ✨ Key Features
 
-## Tech Stack
+- 📊 **Dashboard** — balance, daily spend, pay-cycle stats, and a spending chart at a glance
+- 📅 **Calendar projections** — see your projected balance on any future date
+- 🎯 **Purchase goals** — find the earliest payday you can safely afford something
+- 🤖 **AI chat & insights** — ask about affordability, savings timing, and weekly spending trends
+- 🔁 **Recurring expenses** — bills and subscriptions factored into every projection
+- ✅ **Tasks** — track savings milestones with a simple `Planned → Saving → Bought` journey
+- 📈 **Savings forecast** — optimistic, realistic, and conservative scenarios
+- 🔐 **Auth & onboarding** — account creation, salary setup wizard, and subscription tiers
+
+## 🛠️ Tech Stack
 
 ```
 Frontend        Next.js 15 · React 19 · TypeScript · Tailwind CSS v4
                 Framer Motion · TanStack Query · shadcn/ui
 
 Backend         NestJS · Fastify · Prisma ORM · PostgreSQL
-                JWT auth · bcryptjs
+                JWT authentication · bcryptjs
 
-AI              OpenRouter (chat, tips, forecasts)
+AI              OpenRouter integration for chat, tips, and forecasts
 
 Tooling         pnpm workspaces · Turborepo
 ```
 
-## Getting Started
+## 🚀 Quick Start
 
-### Requirements
+### Prerequisites
 
 | Tool | Version | Install |
 |---|---|---|
@@ -52,8 +58,7 @@ Tooling         pnpm workspaces · Turborepo
 | **pnpm** | Latest | `npm install -g pnpm` |
 | **PostgreSQL** | 14+ | [postgresql.org](https://www.postgresql.org/download/) or Docker |
 
-<details>
-<summary>Quick Postgres via Docker</summary>
+Need a quick database? Spin one up with Docker:
 
 ```bash
 docker run -d --name pocketflow-db \
@@ -62,9 +67,7 @@ docker run -d --name pocketflow-db \
   -p 5432:5432 postgres:16
 ```
 
-</details>
-
-### Quick Start
+### 1. Clone & install
 
 ```bash
 git clone https://github.com/dexonapi-alt/pocketflow.git
@@ -72,7 +75,7 @@ cd pocketflow
 pnpm install
 ```
 
-Copy the env template and edit it:
+### 2. Configure environment
 
 ```bash
 # PowerShell
@@ -82,58 +85,70 @@ Copy-Item .env.example .env
 cp .env.example .env
 ```
 
-Key variables:
+Then update `.env`:
 
-| Variable | Notes |
-|---|---|
-| `DATABASE_URL` | Default works with the Docker command above |
-| `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | Use long random strings |
-| `OPENROUTER_API_KEY` | Enables AI features; app works without it |
+```env
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/plannerflow
+JWT_ACCESS_SECRET=change-me-access-secret
+JWT_REFRESH_SECRET=change-me-refresh-secret
+JWT_ACCESS_EXPIRY=15m
+JWT_REFRESH_EXPIRY=7d
+OPENROUTER_API_KEY=your_openrouter_key
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+API_PORT=4000
+WEB_URL=http://localhost:3000
+API_URL=http://localhost:4000
+```
 
-Run migrations and start:
+> **Note:** `OPENROUTER_API_KEY` is optional — the app works fine without it, you just
+> won't get AI chat, weekly pulse, or forecast features.
+
+### 3. Set up the database
 
 ```bash
 pnpm db:migrate
+```
+
+### 4. Start the app
+
+```bash
 pnpm dev
 ```
 
 | Service | URL |
 |---|---|
-| Web app | [localhost:3000](http://localhost:3000) |
-| API | [localhost:4000](http://localhost:4000) |
-
-Sign up, complete the onboarding wizard (salary, pay schedule, current balance),
-and start adding expenses and goals.
+| 🌐 Web app | [localhost:3000](http://localhost:3000) |
+| ⚡ API | [localhost:4000](http://localhost:4000) |
 
 ---
 
-## Commands
+## 📋 Commands
 
 | Command | What it does |
 |---|---|
 | `pnpm dev` | Start frontend and backend together |
-| `pnpm build` | Production build |
-| `pnpm lint` | Lint and type-check |
+| `pnpm build` | Build everything for production |
+| `pnpm lint` | Run workspace lint/type checks |
 | `pnpm db:migrate` | Run database migrations |
-| `pnpm db:generate` | Regenerate Prisma client |
+| `pnpm db:generate` | Regenerate Prisma client after schema changes |
 | `pnpm db:studio` | Open Prisma Studio |
-| `pnpm --filter @plannerflow/api dev` | Backend only |
-| `pnpm --filter @plannerflow/web dev` | Frontend only |
+| `pnpm --filter @plannerflow/api dev` | Start only the backend |
+| `pnpm --filter @plannerflow/web dev` | Start only the frontend |
 
 ---
 
-## Project Structure
+## 🗂️ Project Structure
 
 Monorepo managed with pnpm workspaces and Turborepo.
 
 ```text
 apps/
-|-- web/          Next.js frontend
-`-- api/          NestJS backend
+├── web/          Next.js frontend
+└── api/          NestJS backend
 
 packages/
-|-- types/        Shared TypeScript types
-`-- config/       Shared configuration
+├── types/        Shared TypeScript types
+└── config/       Shared configuration
 ```
 
 <details>
@@ -141,52 +156,69 @@ packages/
 
 ```text
 apps/api/src/
-|-- auth/             Sign in, sign up, JWT token management
-|-- users/            User profiles
-|-- onboarding/       Salary setup wizard
-|-- transactions/     Income, expenses, savings transfers
-|-- categories/       Spending categories
-|-- budgets/          Monthly budgets
-|-- fixed-expenses/   Recurring bills
-|-- goals/            Purchase goal tracking
-|-- dashboard/        Balance calculation, charts, cycle stats
-|-- ai/               Chat, insights, forecast, weekly pulse
-|-- planner/          Calendar events
-|-- user-tasks/       Task manager with savings journey
-|-- subscriptions/    Plan management
-|-- notifications/    Alerts and reminders
-|-- prisma/           Database connection and service
-`-- common/           Shared guards, filters, decorators
+├── auth/             Sign in, sign up, JWT token management
+├── users/            User profiles
+├── onboarding/       Salary setup wizard
+├── transactions/     Income, expenses, savings transfers
+├── categories/       Spending categories
+├── budgets/          Monthly budgets
+├── fixed-expenses/   Recurring bills
+├── goals/            Purchase goal tracking
+├── dashboard/        Balance calculation, charts, cycle stats
+├── ai/               Chat, insights, forecast, weekly pulse
+├── planner/          Calendar events
+├── user-tasks/       Task manager with savings journey
+├── subscriptions/    Plan management
+├── notifications/    Alerts and reminders
+├── prisma/           Database connection and service
+└── common/           Shared guards, filters, decorators
 ```
 
 ```text
 apps/web/src/
-|-- app/              Next.js app router pages
-|-- components/
-|   |-- landing/      Landing page sections
-|   |-- auth/         Sign in and sign up forms
-|   |-- onboarding/   Salary setup wizard UI
-|   |-- dashboard/    Dashboard cards, spending chart, forecast
-|   |-- transactions/ Transaction list, forms, filters
-|   |-- calendar/     Calendar grid, projected balance, goal drag-and-drop
-|   |-- task-manager/ Tasks with savings journey progress tracker
-|   |-- chatbot/      AI chat interface with conversation history
-|   |-- subscription/ Plan selection and comparison
-|   |-- more/         Settings, goals, fixed expense management
-|   |-- layout/       Sidebar, header, app shell, floating toast
-|   |-- shared/       Reusable shared components
-|   `-- ui/           Design system components
-|-- hooks/            API data fetching with TanStack Query
-|-- lib/              Utilities, API client, auth helpers
-|-- providers/        React context providers
-`-- styles/           Global CSS and theme
+├── app/              Next.js app router pages
+├── components/
+│   ├── landing/      Landing page sections
+│   ├── auth/         Sign in and sign up forms
+│   ├── onboarding/   Salary setup wizard UI
+│   ├── dashboard/    Dashboard cards, spending chart, forecast
+│   ├── transactions/ Transaction list, forms, filters
+│   ├── calendar/     Calendar grid, projected balance, goal drag-and-drop
+│   ├── task-manager/ Tasks with savings journey progress tracker
+│   ├── chatbot/      AI chat interface with conversation history
+│   ├── subscription/ Plan selection and comparison
+│   ├── more/         Settings, goals, fixed expense management
+│   ├── layout/       Sidebar, header, app shell, floating toast
+│   ├── shared/       Reusable shared components
+│   └── ui/           Design system components
+├── hooks/            API data fetching with TanStack Query
+├── lib/              Utilities, API client, auth helpers
+├── providers/        React context providers
+└── styles/           Global CSS and theme
 ```
 
 </details>
 
 ---
 
-## Plans
+## 🧭 Using the App
+
+1. Open [localhost:3000](http://localhost:3000) and create an account.
+2. Complete onboarding — enter your salary, pay schedule, last payday, and current balance.
+3. Add recurring expenses, transactions, and purchase goals.
+
+From there:
+
+- **Transactions** → log income and expenses with categories and filters
+- **Calendar** → inspect projected balances for any date
+- **Purchase Goals** → estimate when you can safely buy something
+- **AI Chat** → ask questions about affordability, savings, and timing
+- **Tasks** → track general work or savings-related milestones
+- **More** → manage fixed expenses and settings
+
+---
+
+## 💳 Plans
 
 | Plan | Price | Transactions | Tasks | AI |
 |---|---|---|---|---|
@@ -197,28 +229,28 @@ apps/web/src/
 
 ---
 
-## Troubleshooting
+## 🔧 Troubleshooting
 
 <details>
-<summary>Can't connect to the database</summary>
+<summary><strong>Can't connect to the database</strong></summary>
 
-Make sure PostgreSQL is running. If using Docker, check `docker ps`. Verify
-`DATABASE_URL` in `.env` matches your credentials.
+Make sure PostgreSQL is running. If using Docker, check the container is up with `docker ps`.
+Verify `DATABASE_URL` in `.env` matches your actual credentials.
 
 </details>
 
 <details>
-<summary>AI features not working</summary>
+<summary><strong>AI features are not working</strong></summary>
 
-Set `OPENROUTER_API_KEY` in `.env`. Without it the app works, but chat, pulse,
-and forecasts are disabled.
+Set `OPENROUTER_API_KEY` in `.env`. Without it, AI chat, weekly pulse, and forecasts fall back
+to empty or disabled states. The rest of the app works normally.
 
 </details>
 
 <details>
-<summary>bcrypt module error</summary>
+<summary><strong>bcrypt module error</strong></summary>
 
-The project uses `bcryptjs` (pure JS). If you see bcrypt errors:
+The project uses `bcryptjs` (pure JS, no native compilation). If you see bcrypt errors:
 
 ```bash
 pnpm --filter @plannerflow/api remove bcrypt
@@ -228,7 +260,7 @@ pnpm --filter @plannerflow/api add bcryptjs
 </details>
 
 <details>
-<summary>Port already in use</summary>
+<summary><strong>Port already in use</strong></summary>
 
 Web runs on 3000, API on 4000.
 
@@ -245,16 +277,16 @@ kill -9 <pid>
 </details>
 
 <details>
-<summary>Onboarding wizard keeps appearing</summary>
+<summary><strong>Onboarding wizard keeps appearing</strong></summary>
 
 Clear browser local storage for `localhost:3000`, then sign in again.
 
 </details>
 
 <details>
-<summary>Prisma migration fails with EPERM</summary>
+<summary><strong>Prisma migration fails with EPERM</strong></summary>
 
-Stop the dev server first, then re-run:
+Stop the dev server first, then run the migration again:
 
 ```bash
 pnpm db:migrate
@@ -267,6 +299,6 @@ pnpm dev
 
 <div align="center">
 
-*Built for the recurring question: "wait, where did my money go?"*
+*Built for the recurring question: "wait, can I actually afford this right now?"* 🤔
 
 </div>
