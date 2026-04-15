@@ -264,7 +264,10 @@ User's financial data: ${JSON.stringify(summary)}`;
 
   private async buildFinanceSummary(userId: string) {
     const now = new Date();
-    const [incomeAgg, expenseAgg, saveAgg, onboarding, fixedExpenses, earliestTx] = await Promise.all([
+    const [
+      incomeAgg, expenseAgg, saveAgg, onboarding,
+      fixedExpenses, earliestTx, scheduledTx, goals,
+    ] = await Promise.all([
       this.prisma.transaction.aggregate({
         where: { userId, type: "INCOME", transactionDate: { lte: now } },
         _sum: { amount: true },
@@ -287,17 +290,31 @@ User's financial data: ${JSON.stringify(summary)}`;
         orderBy: { transactionDate: "asc" },
         select: { transactionDate: true },
       }),
+      this.prisma.transaction.findMany({
+        where: { userId, transactionDate: { gt: now } },
+        select: { type: true, amount: true, note: true, transactionDate: true },
+        orderBy: { transactionDate: "asc" },
+        take: 20,
+      }),
+      this.prisma.purchaseGoal.findMany({
+        where: { userId },
+        select: { name: true, targetPrice: true, isAchieved: true, targetDate: true },
+      }),
     ]);
 
     const income = Number(incomeAgg._sum.amount ?? 0);
     const expenses = Number(expenseAgg._sum.amount ?? 0);
     const saved = Number(saveAgg._sum.amount ?? 0);
+    const startingBalance = onboarding?.startingBalance
+      ? Number(onboarding.startingBalance)
+      : 0;
+    const currentMoney = startingBalance + income - expenses - saved;
+
     const monthlyFixedExpenses = fixedExpenses.reduce((total, e) => {
       const amt = Number(e.amount);
       return total + (e.frequency === "BIWEEKLY" ? amt * 26 / 12 : amt);
     }, 0);
 
-    // Average monthly variable spending based on actual tracking period
     let monthlyVariableExpenses = 0;
     let trackingDays = 0;
     if (expenses > 0 && earliestTx) {
@@ -307,26 +324,47 @@ User's financial data: ${JSON.stringify(summary)}`;
       monthlyVariableExpenses = expenses / monthsActive;
     }
 
-    // Monthly salary: biweekly = 26 paychecks/year ÷ 12 months
     const rawSalary = onboarding ? Number(onboarding.salaryAmount) : 0;
     const monthlySalary = onboarding?.salaryFrequency === "BIWEEKLY"
       ? rawSalary * 26 / 12
       : rawSalary;
 
+    const monthlySavings = Math.max(0, monthlySalary - monthlyFixedExpenses - (trackingDays >= 60 ? monthlyVariableExpenses : 0));
+
     return {
-      monthlyIncome: monthlySalary || null,
+      currentMoney: Math.round(currentMoney),
+      monthlyIncome: Math.round(monthlySalary) || null,
       salaryPerPaycheck: rawSalary || null,
       salaryFrequency: onboarding?.salaryFrequency ?? null,
-      currentBalance: income - expenses - saved,
-      totalSaved: saved,
-      totalRecordedExpenses: expenses,
-      totalRecordedIncome: income,
-      monthlyFixedExpenses,
-      monthlyVariableExpenses,
+      totalSaved: Math.round(saved),
+      totalRecordedExpenses: Math.round(expenses),
+      totalRecordedIncome: Math.round(income),
+      monthlyFixedExpenses: Math.round(monthlyFixedExpenses),
+      monthlyVariableExpenses: Math.round(monthlyVariableExpenses),
+      estimatedMonthlySavings: Math.round(monthlySavings),
       trackingDays: Math.round(trackingDays),
+      savingsProjections: {
+        "1month": Math.round(currentMoney + monthlySavings),
+        "3months": Math.round(currentMoney + monthlySavings * 3),
+        "6months": Math.round(currentMoney + monthlySavings * 6),
+        "12months": Math.round(currentMoney + monthlySavings * 12),
+      },
       fixedExpenseBreakdown: fixedExpenses.map((fe) => ({
         name: fe.name,
         amount: Number(fe.amount),
+        frequency: fe.frequency,
+      })),
+      scheduledTransactions: scheduledTx.map((t) => ({
+        type: t.type,
+        amount: Number(t.amount),
+        note: t.note,
+        date: t.transactionDate.toISOString().split("T")[0],
+      })),
+      purchaseGoals: goals.map((g) => ({
+        name: g.name,
+        price: Number(g.targetPrice),
+        achieved: g.isAchieved,
+        targetDate: g.targetDate?.toISOString().split("T")[0] ?? null,
       })),
     };
   }
@@ -340,7 +378,29 @@ User's financial data: ${JSON.stringify(summary)}`;
     }
 
     try {
-      const systemPrompt = `You are a helpful personal finance assistant. The user's financial context is below. IMPORTANT: "monthlyIncome" is their confirmed recurring salary (already converted to monthly). Even if "totalRecordedExpenses" or "totalRecordedIncome" is 0, the user still earns monthlyIncome each month. "monthlyFixedExpenses" are recurring bills deducted every month.\n\nContext: ${JSON.stringify(context)}`;
+      const systemPrompt = `You are a personal finance assistant with FULL access to the user's financial data. ALWAYS reference their actual numbers in your answers — never give generic advice.
+
+KEY DATA:
+- "currentMoney": their actual money RIGHT NOW (₱${context.currentMoney?.toLocaleString() ?? 0})
+- "monthlyIncome": confirmed recurring salary per month (₱${context.monthlyIncome?.toLocaleString() ?? 0})
+- "salaryPerPaycheck": amount per paycheck (₱${context.salaryPerPaycheck?.toLocaleString() ?? 0}, ${context.salaryFrequency ?? "unknown"} frequency)
+- "monthlyFixedExpenses": recurring bills every month (₱${context.monthlyFixedExpenses?.toLocaleString() ?? 0})
+- "estimatedMonthlySavings": what they can save per month after all expenses (₱${context.estimatedMonthlySavings?.toLocaleString() ?? 0})
+- "savingsProjections": projected total money at 1/3/6/12 months from now
+- "scheduledTransactions": upcoming one-time expenses/income already planned
+- "purchaseGoals": items they're saving for with target prices and dates
+- "totalSaved": money set aside in savings
+
+RULES:
+1. Always use their ACTUAL numbers. Say "You have ₱X right now" not "check your balance."
+2. For affordability questions: compare against currentMoney, monthly savings, and existing commitments.
+3. Factor in scheduledTransactions (upcoming one-time expenses) when projecting future money.
+4. Consider a safety buffer — recommend keeping at least 3 months of expenses (₱${Math.round((context.monthlyFixedExpenses ?? 0) * 3).toLocaleString()}) as emergency fund.
+5. If they have purchaseGoals, mention how a new expense would affect those timelines.
+6. Use the Philippine Peso (₱) symbol.
+7. Be concise and specific with numbers. No fluff.
+
+Full financial data: ${JSON.stringify(context)}`;
 
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: "POST",
