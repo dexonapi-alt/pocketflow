@@ -220,6 +220,7 @@ export class GoalsService {
   }
 
   private async getSavingsPerPaycheck(userId: string) {
+    const now = new Date();
     const [onboarding, fixedExpenses, expenseAgg, earliestExpense] =
       await Promise.all([
         this.prisma.onboardingProfile.findUnique({ where: { userId } }),
@@ -228,11 +229,11 @@ export class GoalsService {
           select: { amount: true, frequency: true },
         }),
         this.prisma.transaction.aggregate({
-          where: { userId, type: "EXPENSE" },
+          where: { userId, type: "EXPENSE", transactionDate: { lte: now } },
           _sum: { amount: true },
         }),
         this.prisma.transaction.findFirst({
-          where: { userId, type: "EXPENSE" },
+          where: { userId, type: "EXPENSE", transactionDate: { lte: now } },
           orderBy: { transactionDate: "asc" },
           select: { transactionDate: true },
         }),
@@ -254,18 +255,21 @@ export class GoalsService {
 
     const totalExpenses = Number(expenseAgg._sum.amount ?? 0);
 
+    // Only factor in variable spending once we have 60+ days of history;
+    // otherwise one-time purchases distort the per-paycheck calculation.
     let avgExpensesPerPaycheck = 0;
     if (totalExpenses > 0 && earliestExpense) {
-      const now = new Date();
       const start = new Date(earliestExpense.transactionDate);
       const daysDiff = Math.max(1, (now.getTime() - start.getTime()) / 86_400_000);
 
-      if (isBiweekly) {
-        const payPeriods = Math.max(1, daysDiff / 14);
-        avgExpensesPerPaycheck = totalExpenses / payPeriods;
-      } else {
-        const months = Math.max(1, daysDiff / 30.44);
-        avgExpensesPerPaycheck = totalExpenses / months;
+      if (daysDiff >= 60) {
+        if (isBiweekly) {
+          const payPeriods = Math.max(1, daysDiff / 14);
+          avgExpensesPerPaycheck = totalExpenses / payPeriods;
+        } else {
+          const months = Math.max(1, daysDiff / 30.44);
+          avgExpensesPerPaycheck = totalExpenses / months;
+        }
       }
     }
 
