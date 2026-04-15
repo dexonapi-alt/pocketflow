@@ -175,11 +175,16 @@ Financial data: ${JSON.stringify(summary)}`;
   async getSavingsForecast(userId: string) {
     const summary = await this.buildFinanceSummary(userId);
 
-    // Realistic values are always computed deterministically — no AI guessing
+    // Realistic = income minus confirmed recurring costs only.
+    // Variable spending is factored in once there's enough history (60+ days).
     const monthlyIncome = summary.monthlyIncome ?? 0;
     const fixedCosts = summary.monthlyFixedExpenses ?? 0;
-    const recordedExpenses = summary.totalRecordedExpenses ?? 0;
-    const realisticRate = Math.max(0, monthlyIncome - fixedCosts - recordedExpenses);
+    const monthlyVariable = summary.monthlyVariableExpenses ?? 0;
+    const hasEnoughHistory = summary.trackingDays >= 60;
+    const realisticRate = Math.max(
+      0,
+      monthlyIncome - fixedCosts - (hasEnoughHistory ? monthlyVariable : 0),
+    );
 
     const realisticProjections = [
       { period: "1 month", realistic: Math.round(realisticRate) },
@@ -192,7 +197,7 @@ Financial data: ${JSON.stringify(summary)}`;
     let aiAdjustments: { projections?: any[]; insight?: string } = {};
 
     if (this.hasApiKey && monthlyIncome > 0) {
-      const prompt = `You are a financial forecasting engine. The user's REALISTIC monthly savings is already calculated: ₱${Math.round(realisticRate).toLocaleString()}/month (income ₱${Math.round(monthlyIncome).toLocaleString()} minus fixed expenses ₱${Math.round(fixedCosts).toLocaleString()} minus recorded spending ₱${Math.round(recordedExpenses).toLocaleString()}).
+      const prompt = `You are a financial forecasting engine. The user's REALISTIC monthly savings is already calculated: ₱${Math.round(realisticRate).toLocaleString()}/month (income ₱${Math.round(monthlyIncome).toLocaleString()} minus fixed expenses ₱${Math.round(fixedCosts).toLocaleString()}${hasEnoughHistory ? ` minus avg monthly variable spending ₱${Math.round(monthlyVariable).toLocaleString()}` : ""}).
 
 DO NOT recalculate realistic — it is exact. Your job is ONLY to provide optimistic and conservative estimates, plus a one-sentence insight.
 
@@ -259,7 +264,7 @@ User's financial data: ${JSON.stringify(summary)}`;
 
   private async buildFinanceSummary(userId: string) {
     const now = new Date();
-    const [incomeAgg, expenseAgg, saveAgg, onboarding, fixedExpenses] = await Promise.all([
+    const [incomeAgg, expenseAgg, saveAgg, onboarding, fixedExpenses, earliestTx] = await Promise.all([
       this.prisma.transaction.aggregate({
         where: { userId, type: "INCOME", transactionDate: { lte: now } },
         _sum: { amount: true },
@@ -277,6 +282,11 @@ User's financial data: ${JSON.stringify(summary)}`;
         where: { userId },
         select: { name: true, amount: true, frequency: true },
       }),
+      this.prisma.transaction.findFirst({
+        where: { userId, type: "EXPENSE", transactionDate: { lte: now } },
+        orderBy: { transactionDate: "asc" },
+        select: { transactionDate: true },
+      }),
     ]);
 
     const income = Number(incomeAgg._sum.amount ?? 0);
@@ -286,6 +296,16 @@ User's financial data: ${JSON.stringify(summary)}`;
       const amt = Number(e.amount);
       return total + (e.frequency === "BIWEEKLY" ? amt * 26 / 12 : amt);
     }, 0);
+
+    // Average monthly variable spending based on actual tracking period
+    let monthlyVariableExpenses = 0;
+    let trackingDays = 0;
+    if (expenses > 0 && earliestTx) {
+      const msActive = now.getTime() - new Date(earliestTx.transactionDate).getTime();
+      trackingDays = msActive / (24 * 60 * 60 * 1000);
+      const monthsActive = Math.max(1, trackingDays / 30.44);
+      monthlyVariableExpenses = expenses / monthsActive;
+    }
 
     // Monthly salary: biweekly = 26 paychecks/year ÷ 12 months
     const rawSalary = onboarding ? Number(onboarding.salaryAmount) : 0;
@@ -302,6 +322,8 @@ User's financial data: ${JSON.stringify(summary)}`;
       totalRecordedExpenses: expenses,
       totalRecordedIncome: income,
       monthlyFixedExpenses,
+      monthlyVariableExpenses,
+      trackingDays: Math.round(trackingDays),
       fixedExpenseBreakdown: fixedExpenses.map((fe) => ({
         name: fe.name,
         amount: Number(fe.amount),
