@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CreditCard, Target, Sparkles, ChevronRight, Check, X, Pencil,
-  Plus, Trash2, Receipt, ShoppingBag, CalendarDays,
+  Plus, Trash2, Receipt, ShoppingBag, CalendarDays, ShieldCheck, Minus,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,9 @@ export function MorePage() {
   const [editExpenseAmount, setEditExpenseAmount] = useState("");
   const [editExpenseFreq, setEditExpenseFreq] = useState<"MONTHLY" | "BIWEEKLY">("MONTHLY");
   const [editExpenseDueDate, setEditExpenseDueDate] = useState("");
+
+  // Emergency fund state
+  const [emergencyMonths, setEmergencyMonths] = useState(6);
 
   // Purchase goal form state
   const [showAddGoal, setShowAddGoal] = useState(false);
@@ -490,6 +493,102 @@ export function MorePage() {
               >
                 <Plus className="h-4 w-4" /> Add fixed expense
               </button>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ─── Emergency Fund Calculator ─── */}
+        <Card className={card}>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <SectionEyebrow>Safety net</SectionEyebrow>
+                <CardTitle className="mt-2 text-[24px] font-semibold tracking-[-0.03em]">Emergency fund</CardTitle>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#ecfaf1] text-[#27945c]">
+                <ShieldCheck className="h-4 w-4" />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {fixedExpenses.length === 0 ? (
+              <p className="py-6 text-center text-sm text-black/38">
+                Add fixed expenses above to calculate your emergency fund.
+              </p>
+            ) : (
+              <>
+                {/* Month selector */}
+                <div className="space-y-2">
+                  <p className="text-sm text-black/42">Months to cover</p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setEmergencyMonths(Math.max(1, emergencyMonths - 1))}
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-black/6 bg-[#fcfcfb] transition hover:bg-white"
+                    >
+                      <Minus className="h-4 w-4 text-black/50" />
+                    </button>
+                    <div className="flex flex-1 gap-1.5">
+                      {[3, 6, 9, 12].map((m) => (
+                        <button
+                          key={m}
+                          onClick={() => setEmergencyMonths(m)}
+                          className={`flex-1 rounded-2xl border p-2.5 text-sm font-medium transition ${
+                            emergencyMonths === m
+                              ? "border-[#27945c] bg-[#ecfaf1]/60 text-[#27945c]"
+                              : "border-black/6 bg-[#fcfcfb] text-black/50 hover:bg-white"
+                          }`}
+                        >
+                          {m}mo
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setEmergencyMonths(Math.min(24, emergencyMonths + 1))}
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-black/6 bg-[#fcfcfb] transition hover:bg-white"
+                    >
+                      <Plus className="h-4 w-4 text-black/50" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Result */}
+                <div className="rounded-[22px] border border-[#27945c]/15 bg-[#ecfaf1]/30 p-5">
+                  <p className="text-sm text-[#27945c]/70">
+                    You need to save
+                  </p>
+                  <p className="mt-1 text-[28px] font-semibold tracking-[-0.03em] text-[#27945c]">
+                    {formatCurrency(totalFixed * emergencyMonths)}
+                  </p>
+                  <p className="mt-2 text-sm text-black/42">
+                    to cover <span className="font-medium text-black/60">{emergencyMonths} month{emergencyMonths !== 1 ? "s" : ""}</span> of
+                    fixed expenses at {formatCurrency(totalFixed)}/mo
+                  </p>
+                </div>
+
+                {/* Breakdown */}
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-black/50">Breakdown</p>
+                  {fixedExpenses.map((expense) => {
+                    const monthly = expense.frequency === "BIWEEKLY"
+                      ? Number(expense.amount) * 26 / 12
+                      : Number(expense.amount);
+                    return (
+                      <div
+                        key={expense.id}
+                        className="flex items-center justify-between rounded-[18px] border border-black/4 bg-[#fcfcfb] px-4 py-3"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Receipt className="h-3.5 w-3.5 text-black/28" />
+                          <span className="text-[14px] text-black/70">{expense.name}</span>
+                        </div>
+                        <span className="text-[14px] font-medium text-black/60">
+                          {formatCurrency(monthly * emergencyMonths)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
