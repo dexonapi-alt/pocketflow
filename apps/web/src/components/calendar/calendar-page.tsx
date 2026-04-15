@@ -264,14 +264,20 @@ export function CalendarPage() {
 
   const projectedBalance = useMemo(() => {
     if (currentMoney === null || !selectedDate || !onboarding) return null;
-    const today = new Date(); today.setHours(0, 0, 0, 0);
+
+    // "today" = end of today so same-day selection returns null (shows current balance)
+    const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
     const target = new Date(selectedDate + "T23:59:59");
 
-    if (target <= today) return null;
+    if (target <= todayEnd) return null;
+
+    // "tomorrow" start — only count paydays/expenses/transactions strictly after today
+    const tomorrowStart = new Date(); tomorrowStart.setHours(0, 0, 0, 0);
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
 
     let balance = currentMoney;
 
-    // Add paydays between now and target
+    // Add paydays between tomorrow and target
     const salary = Number(onboarding.salaryAmount);
     if (salary > 0) {
       const isBiweekly = onboarding.salaryFrequency === "BIWEEKLY";
@@ -280,11 +286,11 @@ export function CalendarPage() {
         if (onboarding.nextPayday) {
           anchor = new Date(onboarding.nextPayday);
         } else if (onboarding.paydayDayOfMonth) {
-          anchor = new Date(today.getFullYear(), today.getMonth(), Math.min(onboarding.paydayDayOfMonth, 28));
+          anchor = new Date(tomorrowStart.getFullYear(), tomorrowStart.getMonth(), Math.min(onboarding.paydayDayOfMonth, 28));
         } else {
-          anchor = new Date(today);
+          anchor = new Date(tomorrowStart);
         }
-        while (anchor <= today) anchor = new Date(anchor.getTime() + 14 * 86_400_000);
+        while (anchor < tomorrowStart) anchor = new Date(anchor.getTime() + 14 * 86_400_000);
         const cursor = new Date(anchor);
         while (cursor <= target) {
           balance += salary;
@@ -292,8 +298,8 @@ export function CalendarPage() {
         }
       } else {
         const payday = onboarding.paydayDayOfMonth ?? 1;
-        const cursor = new Date(today.getFullYear(), today.getMonth(), Math.min(payday, 28));
-        if (cursor <= today) cursor.setMonth(cursor.getMonth() + 1);
+        const cursor = new Date(tomorrowStart.getFullYear(), tomorrowStart.getMonth(), Math.min(payday, 28));
+        if (cursor < tomorrowStart) cursor.setMonth(cursor.getMonth() + 1);
         while (cursor <= target) {
           balance += salary;
           cursor.setMonth(cursor.getMonth() + 1);
@@ -301,14 +307,14 @@ export function CalendarPage() {
       }
     }
 
-    // Subtract fixed expenses between now and target
+    // Subtract fixed expenses between tomorrow and target
     for (const fe of fixedExpenses) {
       const amt = Number(fe.amount);
       const isFeBiweekly = fe.frequency === "BIWEEKLY";
       if (isFeBiweekly) {
         let anchor = new Date(fe.createdAt);
         if (fe.dueDate) anchor.setDate(fe.dueDate);
-        while (anchor <= today) anchor = new Date(anchor.getTime() + 14 * 86_400_000);
+        while (anchor < tomorrowStart) anchor = new Date(anchor.getTime() + 14 * 86_400_000);
         const cursor = new Date(anchor);
         while (cursor <= target) {
           balance -= amt;
@@ -316,8 +322,8 @@ export function CalendarPage() {
         }
       } else {
         const day = fe.dueDate ?? new Date(fe.createdAt).getDate();
-        const cursor = new Date(today.getFullYear(), today.getMonth(), Math.min(day, 28));
-        if (cursor <= today) cursor.setMonth(cursor.getMonth() + 1);
+        const cursor = new Date(tomorrowStart.getFullYear(), tomorrowStart.getMonth(), Math.min(day, 28));
+        if (cursor < tomorrowStart) cursor.setMonth(cursor.getMonth() + 1);
         while (cursor <= target) {
           balance -= amt;
           cursor.setMonth(cursor.getMonth() + 1);
@@ -325,10 +331,10 @@ export function CalendarPage() {
       }
     }
 
-    // Add scheduled transactions (future-dated, between today and target)
+    // Add scheduled transactions (strictly after today, up to target)
     for (const t of transactions) {
       const txDate = new Date(t.transactionDate);
-      if (txDate > today && txDate <= target) {
+      if (txDate >= tomorrowStart && txDate <= target) {
         if (t.type === "INCOME") balance += Number(t.amount);
         else if (t.type === "EXPENSE") balance -= Number(t.amount);
         else if (t.type === "SAVE") balance -= Number(t.amount);
