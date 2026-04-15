@@ -63,13 +63,12 @@ one timeline — so you stop guessing and start knowing.
 
 ### Prerequisites
 
-| Tool | Version | Install |
-|---|---|---|
-| **Node.js** | 20+ | [nodejs.org](https://nodejs.org) |
-| **pnpm** | Latest | `npm install -g pnpm` |
-| **PostgreSQL** | 14+ | [postgresql.org](https://www.postgresql.org/download/) or Docker |
+[![Node.js](https://img.shields.io/badge/Node.js-20+-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org)
+[![pnpm](https://img.shields.io/badge/pnpm-latest-F69220?style=for-the-badge&logo=pnpm&logoColor=white)](https://pnpm.io/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/download/)
 
-Need a quick database? Spin one up with Docker:
+<details>
+<summary>🐳 Quick Postgres via Docker</summary>
 
 ```bash
 docker run -d --name pocketflow-db \
@@ -78,7 +77,9 @@ docker run -d --name pocketflow-db \
   -p 5432:5432 postgres:16
 ```
 
-### 1. Clone & install
+</details>
+
+### 1️⃣ Clone & install
 
 ```bash
 git clone https://github.com/dexonapi-alt/pocketflow.git
@@ -86,7 +87,7 @@ cd pocketflow
 pnpm install
 ```
 
-### 2. Configure environment
+### 2️⃣ Configure environment
 
 ```bash
 # PowerShell
@@ -96,7 +97,8 @@ Copy-Item .env.example .env
 cp .env.example .env
 ```
 
-Then update `.env`:
+<details>
+<summary>📄 Environment variables reference</summary>
 
 ```env
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/plannerflow
@@ -111,40 +113,45 @@ WEB_URL=http://localhost:3000
 API_URL=http://localhost:4000
 ```
 
-> **Note:** `OPENROUTER_API_KEY` is optional — the app works fine without it, you just
-> won't get AI chat, weekly pulse, or forecast features.
+| Variable | Notes |
+|---|---|
+| `DATABASE_URL` | Default works with the Docker command above |
+| `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | Use long, unique random strings |
+| `OPENROUTER_API_KEY` | Optional — enables AI chat, weekly pulse, and forecasts. App works without it. |
 
-### 3. Set up the database
+</details>
+
+### 3️⃣ Set up the database
 
 ```bash
 pnpm db:migrate
 ```
 
-### 4. Start the app
+### 4️⃣ Start the app
 
 ```bash
 pnpm dev
 ```
 
-| Service | URL |
-|---|---|
-| 🌐 Web app | [localhost:3000](http://localhost:3000) |
-| ⚡ API | [localhost:4000](http://localhost:4000) |
+> | | Service | URL |
+> |---|---|---|
+> | 🌐 | **Web app** | [`localhost:3000`](http://localhost:3000) |
+> | ⚡ | **API** | [`localhost:4000`](http://localhost:4000) |
 
 ---
 
 ## 📋 Commands
 
-| Command | What it does |
-|---|---|
-| `pnpm dev` | Start frontend and backend together |
-| `pnpm build` | Build everything for production |
-| `pnpm lint` | Run workspace lint/type checks |
-| `pnpm db:migrate` | Run database migrations |
-| `pnpm db:generate` | Regenerate Prisma client after schema changes |
-| `pnpm db:studio` | Open Prisma Studio |
-| `pnpm --filter @plannerflow/api dev` | Start only the backend |
-| `pnpm --filter @plannerflow/web dev` | Start only the frontend |
+| | Command | What it does |
+|---|---|---|
+| ▶️ | `pnpm dev` | Start frontend and backend together |
+| 📦 | `pnpm build` | Build everything for production |
+| 🔍 | `pnpm lint` | Run workspace lint/type checks |
+| 🗃️ | `pnpm db:migrate` | Run database migrations |
+| 🔄 | `pnpm db:generate` | Regenerate Prisma client after schema changes |
+| 🔎 | `pnpm db:studio` | Open Prisma Studio |
+| ⚡ | `pnpm --filter @plannerflow/api dev` | Start only the backend |
+| 🌐 | `pnpm --filter @plannerflow/web dev` | Start only the frontend |
 
 ---
 
