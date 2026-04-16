@@ -40,9 +40,8 @@ function getExpenseDaysForMonth(expenses: FixedExpense[], year: number, month: n
   const map = new Map<number, FixedExpense[]>();
 
   for (const expense of expenses) {
-    if (!expense.dueDate) continue;
-
     if (expense.frequency === "BIWEEKLY") {
+      if (!expense.dueDate) continue;
       // Anchor on the due date in the month the expense was created,
       // then step every 14 days to find which dates land in the viewed month.
       const created = new Date(expense.createdAt);
@@ -62,7 +61,7 @@ function getExpenseDaysForMonth(expenses: FixedExpense[], year: number, month: n
         }
       }
     } else {
-      const day = Math.min(expense.dueDate, daysInMonth);
+      const day = Math.min(expense.dueDate ?? 1, daysInMonth);
       if (!map.has(day)) map.set(day, []);
       map.get(day)!.push(expense);
     }
